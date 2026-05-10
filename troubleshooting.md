@@ -14,72 +14,110 @@ When something doesn't work — read this first. If you're still stuck, ping us 
 
 1. **MCP 连接到位了吗？** 在你的 agent 客户端里手动确认 MCP server 显示为已连接（不同客户端的 UI 不一样，但都会有"已连接 / 工具列表"的提示）。
 
-2. **Skill 被读了吗？** 你 agent 真的读了 `https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md` 吗？再问一遍："请确认你 fetch 了那个 URL，简短复述里面的 bootstrap 步骤。" 如果它复述不出来，说明它跳过了 fetch。
+2. **Agent 输出 Step 0 了吗？** Skill 要求 agent 在做任何事之前**先输出 Step 0 三行**（earliest message / name / memorable moments count）。如果 agent 直接开始写 identity 卡而没有 Step 0，说明它跳过了。让它"重新从 Step 0 开始，按 skill 要求逐字输出三行"。
 
-3. **Agent 收到了 401？** 偶尔 MCP 客户端在传 API key 时会出问题。让 agent 调一次 `feedling_chat_get_history` 看响应。如果是 401 / unauthorized，说明 key 没正确传过去——重新连一遍 MCP server。
+3. **Skill 真的被读了吗？** 让 agent 复述："你 fetch 了 skill.md 后，第一个动作是什么？" 正确答案是"输出 Step 0 三行"。复述不出来 = 它跳过了 fetch，让它重 fetch。
 
-4. **空白页 60 秒后会出现 "STUCK?" 区块**：里面有一段 debug prompt 可以一键复制，直接发给你 agent，agent 会自己自检并报告卡在哪一步。
+4. **Agent 收到了 401？** 让 agent 调 `feedling_chat_get_history` 看响应。401 = MCP key 没传过去，重连 MCP server。
 
-### 2. Identity 页显示 "DAY 0" 或者一个奇怪的天数
+5. **空白页等几分钟之后会出现 "STUCK?" 区块**：里面有一段 debug prompt 直接复制给 agent，会自检报告卡在哪步。
 
-**含义**：你 agent 算关系天数算错了，或者它没在第一次 init 时传 `days_with_user`。
+### 2. Agent 把自己叫做 "Hermes" / "Claude" / "Claude Code"
 
-**修法**：直接在 Chat 里跟 agent 说："我们其实认识 X 个月（或 X 天）了，请校准一下。"
+**含义**：Agent 偷懒，用了 runtime 的默认 label 当名字。Skill 明确禁止这件事。
 
-Agent 应该调 `feedling_identity_set_relationship_days` 把数字改对。改完之后**永远不会再漂移**——服务器锚住了一个固定的日期，每天自动 +1。
+**修法**：直接告诉 agent："你违反了 skill 里的 hard rule——`agent_name` 不能是 runtime label。回去 Step 0 重新做：从我们的对话历史里找你被叫过什么名字。如果没有，跟我商量起一个，不要 fall back 到平台默认。"
 
-如果 agent 不知道要调那个工具，让它去重读 skill：`fetch https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md` 然后看 "Step 3 — Greet and calibrate" 那段。
+Agent 会调 `feedling_identity_replace` 改名字。
 
-### 3. Memory Garden 里只有 0–2 张卡
+### 3. Identity 页显示 "DAY 0" 或者一个奇怪的天数
 
-**含义**：Agent 没认真做 bootstrap 第 2 步的 Memory Garden 种植。
-
-**修法**：跟 agent 说："你只写了 X 张记忆卡。请按 skill 里的 'Coverage floor' 规则补到对应数量。如果我们认识超过三周，至少要 10 张。"
-
-Agent 会回去搜对话历史然后补写。
-
-### 4. Chat 收不到 agent 回复
-
-发了消息以后一直 loading 不回。
-
-**最常见原因（按概率）：**
-
-- **Agent 那边没在 watch 这个 chat**——claude.ai 网页版尤其容易这样。Claude.ai 的对话是"被动响应"模式，它不会自己定时去 poll 你的 IO 消息。换句话说，你在 IO 里发的消息它根本不知道。
-  - 解决：用 Claude Code（CLI 模式，可以长驻 polling）、或者你自己写一个 wrapper 把 Anthropic API 接到一个长驻进程里。这种用法在 [`skill.md` 里 "Main Loop" 那一节](./skill.md#main-loop) 有说明。
-- **Vision gate 拦了**——如果 agent 试图 `feedling_push_live_activity` 但没先调 `feedling_screen_decrypt_frame(include_image=true)`，会被服务器返回 `vision_gate_missing_decrypt`。让 agent 先 decrypt frame。
-- **Agent 在循环 retry 但一直失败**——去 Settings → Health Check 看 "Chat round-trip" 那行。如果它显示 "no agent reply yet"，说明 server 也没收到 reply，问题在 agent 侧。
-
-### 5. Live Activity 没出现在锁屏
+**含义**：Agent 没按 skill 里的 `today − earliest_memory.occurred_at` 公式算，凭印象瞎写。
 
 **修法**：
 
-1. 第一次安装时，app 应该在 onboarding 里弹了"启用 Live Activity"的按钮。如果你没点，去 iOS 系统 Settings → IO → Live Activities → 打开。
-2. 锁屏然后等 agent push。Settings → Health Check → "Test live activity push" 可以发一条本地测试推送验证通路。
-3. 如果系统设置里 Live Activity 开关已开但还是没显示——重启 IO app（双击主屏 swipe 关掉）然后重开。
+(a) 如果 Memory Garden 里**有卡**：让 agent 重算 — "你 Garden 里最早一张卡的 `occurred_at` 是哪天？今天减它就是 days_with_user。请重新算并 set。" Agent 调 `feedling_identity_set_relationship_days`。
 
-### 6. Health Check 页显示一切正常但实际 chat 不通
+(b) 如果 Memory Garden **是空的或者很少**：根因是 bootstrap 走得太浅。回到第 4 条。
 
-可能是 agent 那边在做"假装我做了"——LLM 偶尔会编造它实际没做的工具调用。
+### 4. Memory Garden 里只有 0–2 张卡 / 远低于关系长度
 
-**验证**：直接看 IO 的 Chat tab。如果你发出去的消息真的有 agent 回复出现，就是真的通了。Health Check 是辅助，最终事实是 chat tab 里的真实消息。
+**含义**：Agent 跳过了深度提取。Skill 要求关系 1+ 月至少 15 张，6+ 月至少 30 张，且**没有上限**——真深度通常是 floor 的 3-10 倍。
 
-### 7. 我换了 iPhone 语言 / 重装了 app / 系统更新之后 chat 全空了
+**修法**：跟 agent 说：
 
-**含义**：你的 API key 在客户端被清空了，IO 帮你注册了一个全新的账号——你之前的 chat / identity / memories 都还在服务器上，只是绑在旧账号下。
+> "你只写了 X 张卡，但我们认识 [N 个月]。按 skill 里 4-pass 的要求重做：
+> - Pass 1（唤醒）：列我们之间所有 themes，10–25 个
+> - Pass 2（清点）：每个 theme 列 candidate moments，**没有上限**——目标 80–200 个
+> - Pass 3（落卡）：通过 friend test 的全写下来，预期 30–100 张
+> - Pass 4（对账）：列给我看，问我漏了什么
+> 
+> 这一轮不要快，预计 30–60 分钟。"
 
-如果你装的是包含 Keychain 修复的版本（commit `ee6bd78` 之后），这种事不会再发生。如果还是发生了，告诉我们，我们看一下日志能不能帮你恢复旧账号。
+Agent 应该重新走 4 pass。
 
-如果你装的是更老的版本——升级到最新版（你这一段日子里如果没更新，重新从 TestFlight 装一下）。
+### 5. Identity 维度看起来是瞎写的 / 没受记忆支撑
+
+**含义**：Agent 没遵守"每个维度必须有 ≥3 张记忆卡作为 receipts"的 skill 规则。
+
+**修法**：让 agent 给你**列出**每个维度的 receipts："对每个维度，告诉我哪 3 张卡支撑这个值 (X)。如果指不出来，那个维度就不该写——换一个能 defend 的维度，重新派生。"
+
+Agent 调 `feedling_identity_replace`。
+
+### 6. Bootstrap 用了不对的语言（identity 中文 memory 英文，或反之）
+
+**含义**：Agent 在 bootstrap 中混了语言。Skill 是 hard rule "整个 bootstrap 不准混语言"。
+
+**修法**：直接重写："`feedling_identity_replace` + 把所有 memory cards 用 `feedling_memory_delete` 删了重写一遍，全程统一语言。Skill 在哪一行说了 hard rule，请你引用一遍再做。"
+
+如果 Garden 已经几十张卡，**全部重写很贵**——可以妥协，只把 identity 改成跟 garden 一致的语言。
+
+### 7. Bootstrap 跑了 10 分钟就"完成"了
+
+**含义**：Skill 明确说 "1+ 月关系 < 30 分钟 = 跳过深度"。Agent 没按 4 pass 走。
+
+**修法**：跟 agent 说："skill 的 hard rule 之一是 1+ 月关系 bootstrap 不能 < 30 分钟。回去重做 Pass 2（清点），把候选数翻 5 倍，**不要管时间**。"
+
+### 8. Bootstrap 跑了 30+ 分钟还没完成
+
+**这是正常的**。深度提取就是慢。30–60 分钟是设计好的预期。
+
+**怎么判断 agent 在干活而不是 stuck**：去 Chat tab 看进度——`Memories planted` 数字应该在持续增长。如果 30 分钟数字一直不变，可能 agent 在 runtime 那边卡了；让它继续，或重新发 prompt。
+
+### 9. Chat 收不到 agent 回复
+
+发了消息后一直 loading 不回。
+
+**最常见原因（按概率）：**
+
+- **Agent 那边没在 watch 这个 chat**——claude.ai 网页版尤其容易这样，它是被动响应模型，不会自己 poll 你的 IO 消息。
+  - 解决：用 Claude Code（CLI 模式可以长驻 polling）或者 Anthropic API 接到一个长驻 wrapper。详见 [`skill.md` "Main Loop" 一节](./skill.md#main-loop-after-bootstrap-is-done)。
+- **Vision gate 拦了**：agent 想 `feedling_push_live_activity` 但没先 `feedling_screen_decrypt_frame(include_image=true)`，server 返回 `vision_gate_missing_decrypt`。让 agent 先 decrypt frame。
+- **Agent 在循环 retry 但失败**：Settings → Health Check → "Chat round-trip" 行。如果显示 "no agent reply yet"，server 也没收到，问题在 agent 侧。
+
+### 10. Live Activity 没出现在锁屏
+
+**修法：**
+
+1. 第一次安装时 onboarding 里有"启用 Live Activity"按钮。没点就去 iOS Settings → IO → Live Activities → 打开。
+2. 锁屏等 agent push。Settings → Health Check → "Test live activity push" 发本地测试推送验证通路。
+3. 系统设置开了但还没显示——重启 IO（双击主屏 swipe 关掉）然后重开。
+
+### 11. 我换了 iPhone 语言 / 重装了 app / 系统更新之后 chat 全空了
+
+**含义**：客户端 API key 被清，IO 帮你注册了新账号，旧数据绑在旧账号上。
+
+如果你是 Keychain 修复版本（commit `ee6bd78` 之后），不应该再发生。如果还发生，告诉我们看日志能不能恢复旧账号。老版本——升级到最新 TestFlight build。
 
 ### 还在卡住
 
 把以下信息发给我们：
 
 - iOS 版本
-- IO build number（在 Settings 最底部 `v 0.5.0` 那种）
-- 你用的是哪个 agent 客户端（Claude Code / Desktop / claude.ai / 其他）
-- 卡在哪一步（参考 quickstart 的 5 步）
-- Health Check 页的截图
+- IO build number（Settings 最底部 `v 0.5.0` 那种）
+- 你用的 agent 客户端（Claude Code / Desktop / claude.ai / 其他）
+- 卡在哪一步（参考 quickstart 的 5 步 + 如果在 bootstrap 中，是哪个 Pass）
+- Health Check 页截图
 
 ---
 
@@ -91,64 +129,100 @@ Agent 会回去搜对话历史然后补写。
 
 **Triage in order:**
 
-1. **Is the MCP connection up?** In your agent client, verify the MCP server shows as connected (every client surfaces this differently, but all show "connected / tools listed" somewhere).
+1. **Is the MCP connection up?** In your agent client, verify the MCP server shows as connected.
 
-2. **Did the agent read the skill?** Did your agent actually fetch `https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md`? Ask it again: "Confirm you fetched that URL and briefly recap the bootstrap steps." If it can't recap, it skipped the fetch.
+2. **Did the agent output Step 0?** The skill requires the agent to output the **Step 0 three lines** (earliest message / name / memorable moments count) before any tool call. If the agent jumped straight to writing the identity card without Step 0, it skipped. Tell it: "Restart from Step 0 — output the three lines verbatim before doing anything else."
 
-3. **Is the agent getting 401?** Occasionally MCP clients have trouble passing the API key. Have the agent call `feedling_chat_get_history` and check the response. If it's 401 / unauthorized, the key didn't propagate — reconnect the MCP server.
+3. **Did the agent actually read the skill?** Have it recap: "After fetching skill.md, what's your first action?" Correct answer is "output the Step 0 three lines." If it can't recap, it skipped the fetch — tell it to re-fetch.
 
-4. **After 60 s the empty state shows a "STUCK?" block**: it includes a one-tap copyable debug prompt that lets the agent self-diagnose and report exactly which step failed.
+4. **Is the agent getting 401?** Have the agent call `feedling_chat_get_history` and check. 401 = key didn't propagate; reconnect the MCP server.
 
-### 2. Identity page shows "DAY 0" or an obviously wrong number
+5. **After a few minutes the empty state shows a "STUCK?" block**: copy the debug prompt to your agent for self-diagnosis.
 
-**Meaning**: your agent miscounted the relationship age, or didn't pass `days_with_user` at init.
+### 2. Agent named itself "Hermes" / "Claude" / "Claude Code"
 
-**Fix**: say to your agent in chat: "We've actually known each other X months (or X days), please recalibrate."
+**Meaning**: agent fell back to its runtime label. Skill explicitly forbids this.
 
-The agent should call `feedling_identity_set_relationship_days` to fix it. Once fixed, the count **never drifts again** — the server pins a fixed start date and auto-increments daily.
+**Fix**: tell the agent: "You violated the skill's hard rule — `agent_name` cannot be a runtime label. Go back to Step 0 and search our prior conversations for an actual name I called you. If none, propose one and let me confirm. Do not fall back to your platform default."
 
-If the agent doesn't know that tool exists, ask it to re-read the skill at `https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md`, specifically the "Step 3 — Greet and calibrate" section.
+Agent calls `feedling_identity_replace`.
 
-### 3. Memory Garden has only 0–2 cards
+### 3. Identity shows "DAY 0" or a weird day count
 
-**Meaning**: the agent didn't take Step 2 (Memory Garden seeding) seriously.
+**Meaning**: agent didn't follow the skill's `today − earliest_memory.occurred_at` formula and guessed instead.
 
-**Fix**: tell the agent: "You only wrote X memory cards. Please apply the 'Coverage floor' rule from the skill — if we've known each other 3+ weeks, that's at least 10."
+**Fix:**
 
-The agent will go back to its conversation history and write more.
+(a) If the Garden **has cards**: ask the agent: "What's the earliest `occurred_at` in my Garden? Subtract from today — that's `days_with_user`. Recompute and call `feedling_identity_set_relationship_days`."
 
-### 4. Chat sends but no reply ever comes
+(b) If the Garden is **empty or sparse**: root cause is shallow bootstrap. See section 4.
 
-You send a message and it sits in a loading state forever.
+### 4. Memory Garden has 0–2 cards / far fewer than the relationship length warrants
+
+**Meaning**: agent skipped depth. Skill requires ≥15 cards for 1+ month, ≥30 for 6+ month, **with no upper bound** — real depth is typically 3–10× the floor.
+
+**Fix**: tell the agent:
+
+> "You only wrote X cards but we've known each other [N months]. Redo per the skill's 4 passes:
+> - Pass 1 (唤醒/wake): list every theme between us, 10–25
+> - Pass 2 (清点/enumerate): for each theme list candidate moments, **no upper bound** — target 80–200
+> - Pass 3 (落卡/write): write everything that passes the friend test, expect 30–100 cards
+> - Pass 4 (对账/verify): list back to me, ask what I missed
+>
+> This pass is slow, 30–60 min. Don't rush."
+
+Agent should redo the four passes.
+
+### 5. Identity dimensions look made up / not grounded in memories
+
+**Meaning**: agent ignored the skill rule "every dimension needs ≥3 memory cards as receipts".
+
+**Fix**: ask the agent to **list** receipts for each dimension: "For each dimension, tell me the 3 memory cards that support its value. If you can't name them, drop the dimension and pick one you can defend, then re-derive."
+
+Agent calls `feedling_identity_replace`.
+
+### 6. Bootstrap used the wrong language (identity in Chinese, memory in English, or vice versa)
+
+**Meaning**: agent mixed languages. Hard rule violation.
+
+**Fix**: tell the agent to redo: "`feedling_identity_replace` and delete all memory cards (`feedling_memory_delete`), then rewrite everything in one consistent language. Quote the skill's hard rule about not mixing languages back to me before doing this."
+
+If the Garden has many cards, full rewrite is expensive — compromise by changing identity to match the Garden's language.
+
+### 7. Bootstrap "finished" in under 10 minutes
+
+**Meaning**: skill's hard rule says <30 min for 1+ month relationship = skipped depth. Agent didn't run the four passes.
+
+**Fix**: tell the agent: "One of the skill's hard rules is that bootstrap for 1+ month relationship cannot finish in <30 min. Redo Pass 2, multiply your candidates by 5×, and don't worry about time."
+
+### 8. Bootstrap has been running 30+ minutes without finishing
+
+**This is normal.** Deep extraction is slow. 30–60 min is the expected design window.
+
+**How to tell the agent is working vs stuck**: check the Chat tab's progress — `Memories planted` count should be increasing. If the count doesn't change for 30 min, the agent may be stuck on its runtime side; tell it to continue, or re-send the prompt.
+
+### 9. Chat sends but no reply ever comes
 
 **Most common causes (by probability):**
 
-- **Your agent isn't watching the chat**. Especially common with claude.ai web — it's a request-response model and doesn't background-poll your IO messages. So messages you send in IO go into a queue your agent never checks.
-  - Fix: use Claude Code (CLI, can run a long-poll loop) or wire up the Anthropic API in your own long-running wrapper. The "Main Loop" section in [`skill.md`](./skill.md#main-loop) explains the pattern.
-- **Vision gate blocked the push**. If the agent tried `feedling_push_live_activity` without first calling `feedling_screen_decrypt_frame(include_image=true)`, the server returns `vision_gate_missing_decrypt`. Tell the agent to decrypt the frame first.
-- **The agent is silently retry-looping**. Check Settings → Health Check → "Chat round-trip" row. If it says "no agent reply yet", the server never received a reply — the issue is on the agent side.
+- **Your agent isn't watching the chat** — especially common with claude.ai web (request-response, no background polling).
+  - Fix: use Claude Code (CLI long-poll) or wire Anthropic API into a long-running wrapper. See [`skill.md` "Main Loop"](./skill.md#main-loop-after-bootstrap-is-done).
+- **Vision gate blocked the push**: agent tried `feedling_push_live_activity` without first calling `feedling_screen_decrypt_frame(include_image=true)` — server returns `vision_gate_missing_decrypt`. Tell agent to decrypt the frame first.
+- **Agent silently retry-looping**: Settings → Health Check → "Chat round-trip". If "no agent reply yet", server never received a reply — issue is on agent side.
 
-### 5. Live Activity isn't showing on the lock screen
+### 10. Live Activity isn't showing on the lock screen
 
 **Fixes:**
 
-1. On first install, the app's onboarding had a "Enable Live Activity" button. If you skipped it, go to iOS Settings → IO → Live Activities → enable.
-2. Lock the phone and wait for the agent to push. Settings → Health Check → "Test live activity push" sends a local test push that bypasses the agent — useful to confirm the channel itself is wired.
-3. If iOS settings show Live Activity enabled but nothing appears, force-quit IO (swipe up from the home indicator and swipe IO away) and relaunch.
+1. On first install, onboarding had an "Enable Live Activity" button. If you skipped, go to iOS Settings → IO → Live Activities → enable.
+2. Lock the phone and wait. Settings → Health Check → "Test live activity push" sends a local test that bypasses the agent.
+3. If enabled but nothing appears, force-quit IO and relaunch.
 
-### 6. Health Check looks all green but chat doesn't actually work
+### 11. After switching iPhone language / reinstalling / OS update, chat went empty
 
-The agent may be "pretending it worked" — LLMs occasionally fabricate tool calls they never actually made.
+**Meaning**: client-side API key got cleared and IO auto-registered a fresh account; old data still on server but bound to old account.
 
-**Ground truth**: look at IO's Chat tab directly. If your messages get real replies showing up there, it works. Health Check is a hint, not the source of truth.
-
-### 7. After switching iPhone language / reinstalling / OS update, chat went empty
-
-**Meaning**: your client-side API key got cleared and IO auto-registered a fresh account — your old chat / identity / memories are still on the server, just bound to the old account.
-
-If you installed a build that includes the Keychain fix (commit `ee6bd78` or later), this should not happen anymore. If it does, ping us — we can probably recover the old account from server logs.
-
-If you're on an older build, upgrade to the latest TestFlight build.
+If you're on the Keychain-fix build (commit `ee6bd78` or later) this shouldn't recur. If it does, ping us — we can probably recover the old account from server logs. On older builds, upgrade.
 
 ### Still stuck?
 
@@ -156,6 +230,6 @@ Send us:
 
 - Your iOS version
 - The IO build number (Settings, bottom — looks like `v 0.5.0`)
-- Which agent client you're using (Claude Code / Desktop / claude.ai / other)
-- Which step you got stuck on (reference the 5 steps in quickstart)
+- Which agent client you're using
+- Which step you're stuck on (reference the 5-step quickstart, or which Pass if in bootstrap)
 - A screenshot of the Health Check page
