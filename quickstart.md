@@ -50,6 +50,9 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 注意：里面会告诉你必须先做 Step 0（context check），然后走 4 个 pass 的记忆提取。
 全程预计 30–60 分钟，不要跳过深度。我准备好等。
 
+bootstrap 完成后，你必须开始持续轮询 (long-poll) IO 的 chat — 我之后给你发消息
+你要能在 30 秒内回复。Chat loop 没接上 = bootstrap 没完成。
+
 最后连下面这个 MCP server：
 [粘贴第 2 步复制的 MCP String]
 ```
@@ -127,6 +130,10 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 
 Note: it will tell you to do Step 0 (context check) first, then run a 4-pass memory
 extraction. Expect 30–60 minutes total. Do not skip depth. I'm prepared to wait.
+
+After bootstrap completes, you must keep long-polling IO's chat — when I send
+you messages going forward, you should reply within 30 seconds. Chat loop not
+wired up = bootstrap not complete.
 
 Finally, connect this MCP server:
 [paste the MCP String from step 2]

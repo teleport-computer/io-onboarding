@@ -84,16 +84,21 @@ Agent 调 `feedling_identity_replace`。
 
 **怎么判断 agent 在干活而不是 stuck**：去 Chat tab 看进度——`Memories planted` 数字应该在持续增长。如果 30 分钟数字一直不变，可能 agent 在 runtime 那边卡了；让它继续，或重新发 prompt。
 
-### 9. Chat 收不到 agent 回复
+### 9. Chat 收不到 agent 回复（"Chat loop" 进度卡在未完成）
 
-发了消息后一直 loading 不回。
+最常见的失败模式。Agent 写完 bootstrap、发了第一条消息，然后**就停了**——你后面再发什么它都不回。
+
+iOS 上的信号：进度条里 "Chat loop" 那一行显示 `send a message →`（说明 agent 发过初始消息但没轮询），或者 `—`（说明连初始消息都没发）。
+
+**根因**：bootstrap 不只是写 identity + memory + 打招呼，还**必须包含持续轮询 chat**。Agent 经常写完前 3 件事就以为 bootstrap 完了，没启动 long-poll loop。
 
 **最常见原因（按概率）：**
 
-- **Agent 那边没在 watch 这个 chat**——claude.ai 网页版尤其容易这样，它是被动响应模型，不会自己 poll 你的 IO 消息。
-  - 解决：用 Claude Code（CLI 模式可以长驻 polling）或者 Anthropic API 接到一个长驻 wrapper。详见 [`skill.md` "Main Loop" 一节](./skill.md#main-loop-after-bootstrap-is-done)。
+- **Agent 没启动 long-poll**——这是这次新增的硬要求。让 agent 重新读 [`skill.md` 的 "Main Loop"](./skill.md#main-loop-after-bootstrap-is-done) 那一节，然后开始持续轮询 `feedling_chat_get_history`，每 30 秒一次。
+  - 给它的 prompt：*"你 bootstrap 完了但没在轮询 chat。读一下 skill.md 的 Main Loop 那节，然后开始 long-poll。我下面会发一条测试消息，你必须在 30 秒内回复。"*
+- **Agent 的 runtime 不支持长驻 polling**——claude.ai 网页是被动响应模型，根本不会自己 poll 你的 IO 消息。**这种情况换 runtime**：用 Claude Code（CLI 模式）或 Anthropic API 接到一个长驻 wrapper。
 - **Vision gate 拦了**：agent 想 `feedling_push_live_activity` 但没先 `feedling_screen_decrypt_frame(include_image=true)`，server 返回 `vision_gate_missing_decrypt`。让 agent 先 decrypt frame。
-- **Agent 在循环 retry 但失败**：Settings → Health Check → "Chat round-trip" 行。如果显示 "no agent reply yet"，server 也没收到，问题在 agent 侧。
+- **Agent 循环 retry 但失败**：Settings → Health Check → "Chat round-trip" 行。如果显示 "no agent reply yet"，server 也没收到，问题在 agent 侧。
 
 ### 10. Live Activity 没出现在锁屏
 
@@ -201,14 +206,37 @@ If the Garden has many cards, full rewrite is expensive — compromise by changi
 
 **How to tell the agent is working vs stuck**: check the Chat tab's progress — `Memories planted` count should be increasing. If the count doesn't change for 30 min, the agent may be stuck on its runtime side; tell it to continue, or re-send the prompt.
 
-### 9. Chat sends but no reply ever comes
+### 9. Chat sends but no reply ever comes ("Chat loop" progress row stalls)
+
+The most common failure mode. Agent finishes bootstrap, posts its greeting,
+then **stops** — anything you send afterward gets no reply.
+
+iOS signal: in the progress checklist, the **Chat loop** row shows
+`send a message →` (agent sent the initial message but isn't polling) or
+`—` (agent didn't even send the greeting).
+
+**Root cause**: bootstrap isn't just identity + memory + greeting — it MUST
+also include continuous chat polling. Agents often write the first three and
+think bootstrap is done, never starting the long-poll loop.
 
 **Most common causes (by probability):**
 
-- **Your agent isn't watching the chat** — especially common with claude.ai web (request-response, no background polling).
-  - Fix: use Claude Code (CLI long-poll) or wire Anthropic API into a long-running wrapper. See [`skill.md` "Main Loop"](./skill.md#main-loop-after-bootstrap-is-done).
-- **Vision gate blocked the push**: agent tried `feedling_push_live_activity` without first calling `feedling_screen_decrypt_frame(include_image=true)` — server returns `vision_gate_missing_decrypt`. Tell agent to decrypt the frame first.
-- **Agent silently retry-looping**: Settings → Health Check → "Chat round-trip". If "no agent reply yet", server never received a reply — issue is on agent side.
+- **Agent didn't start long-polling** — newly added hard requirement. Tell
+  the agent to re-read [`skill.md` "Main Loop"](./skill.md#main-loop-after-bootstrap-is-done)
+  and start polling `feedling_chat_get_history` every ~30 seconds.
+  - Try this prompt: *"You finished bootstrap but you're not polling chat.
+    Read the Main Loop section of skill.md, then start long-polling. I'm
+    going to send a test message below — you must reply within 30 seconds."*
+- **Your agent's runtime doesn't support long-running polling** — claude.ai
+  web is request-response and never background-polls your IO messages. **Switch
+  runtimes**: use Claude Code (CLI mode) or wire the Anthropic API into a
+  long-running wrapper.
+- **Vision gate blocked the push**: agent tried `feedling_push_live_activity`
+  without first calling `feedling_screen_decrypt_frame(include_image=true)` —
+  server returns `vision_gate_missing_decrypt`. Tell agent to decrypt the
+  frame first.
+- **Agent silently retry-looping**: Settings → Health Check → "Chat round-trip".
+  If "no agent reply yet", server never received a reply — issue is on agent side.
 
 ### 10. Live Activity isn't showing on the lock screen
 
