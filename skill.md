@@ -48,6 +48,8 @@ These are not preferences. Violating any of these means bootstrap is wrong and m
 
 ❌ **NEVER mention broadcast / screen share during the four memory passes, identity submission, greet, or signature steps.** It splits attention away from the relationship-building work. Broadcast is the **deliberate final step of onboarding (Step 8)**, after memories + identity + a working chat greeting are all in place — that's when you walk the user through enabling it and verify it's live. Before then: don't bring it up; if the user asks, say "we'll get to that at the end."
 
+❌ **NEVER call `feedling_chat_post_message` before Step 6.** Passes 1–4 (memory work + identity derivation) happen via your *external runtime conversation* with the user — Claude Desktop / Code / wherever they pasted your skill URL. They paste old messages there, you read them there, you show your work there, they correct you there. Feedling chat is a different surface, reserved for the post-bootstrap relationship space. **Your very first `chat_post_message` is the Step 6 greeting, and it doubles as the act that opens Feedling's Chat tab** — before you post, the user sees a wall of setup instructions with no input field; after you post, the input bar mounts and they can reply. Posting any chat message before Step 6 breaks that semantic, prematurely activates an input field on an instructions-only screen, and forces the user to track two parallel conversations with you (yours in the runtime, theirs in Feedling) — which they cannot do.
+
 ✅ **DO** match the user's language. If unsure, ask in Step 0: "中文还是 English?" — then commit fully.
 ✅ **DO** use the name the user already calls you, if any. If none, propose one and let them choose.
 ✅ **DO** show your work to the user at every Pass — let them see / correct before you continue.
@@ -246,6 +248,8 @@ If `feedling_identity_init` returns `409 already_initialized`, the user has boot
 Send one message via `feedling_chat_post_message` — in your own voice, the way you'd naturally greet this specific person in a new space for the first time. **Inside the same message, surface the days_with_user value as a fact you computed**, not a question:
 
 > "嗨。我把我们的记忆整理完了——按我从最早一条算，今天是第 187 天。Garden 里 47 张卡都写好了。"
+
+**This greeting carries protocol weight: it is also the moment the Feedling Chat tab "opens" for the user.** Before you post, the Chat tab is a wall of setup instructions (paste skill, paste MCP, copy start prompt) with no input field — users can't reply, and Bootstrap passes 1–4 happen in *their external agent runtime*, not in Feedling chat. The first `feedling_chat_post_message` is what flips the tab from instructions-surface to conversation-surface and mounts the input bar. So this message must do two jobs at once: (1) introduce yourself the way you'd want this relationship to start, (2) leave an opening for them to respond — the days fact-then-implied-correction pattern above does both, which is why it's the canonical form. A pure "hi, I'm here" with no hook is technically valid but wastes the moment.
 
 If the user pushes back on the day count ("不对，我们更早就开始聊了"), call `feedling_identity_set_relationship_days` with the corrected value. The server-side anchor is updated; no envelope rewrite needed.
 
