@@ -373,7 +373,7 @@ Loop back to Step A.
 
 ---
 
-## Tool Reference (19 tools)
+## Tool Reference (20 tools)
 
 ### Bootstrap & identity
 
@@ -393,8 +393,9 @@ Loop back to Step A.
 
 ### Chat
 
-- `feedling_chat_get_history` — read chat history; response includes `context_memories` (~8 relevant cards) — weave naturally into replies
-- `feedling_chat_post_message` — write a reply (encrypted automatically)
+- `feedling_chat_get_history` — read chat history; response includes `context_memories` (~8 relevant cards) — weave naturally into replies. Image messages have `content_type: "image"` and a base64 JPEG in `image_b64` (vision-capable agents: decode and look)
+- `feedling_chat_post_message` — write a text reply (encrypted automatically). Triggers an APNs alert to the user's phone so they see your message even when not in the app
+- `feedling_chat_post_image` — send an image (base64 JPEG/PNG, ≤ 1 MB). Image and text are separate messages — to caption an image, send a separate `feedling_chat_post_message`. **Privacy hard rule**: NEVER include content from `feedling_screen_decrypt_frame` outputs (agent seeing screen ≠ user wanting it archived in chat)
 
 ### Screen (vision)
 
