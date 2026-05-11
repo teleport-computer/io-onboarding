@@ -447,7 +447,7 @@ Loop back to Step A.
 
 ### Chat
 
-- `feedling_chat_get_history` — read chat history; response includes `context_memories` (~8 relevant cards) — weave naturally into replies. Image messages have `content_type: "image"` and a base64 JPEG in `image_b64` (vision-capable agents: decode and look)
+- `feedling_chat_get_history` — read chat history; response includes `context_memories` (~8 relevant cards) — weave naturally into replies. **Image messages**: when present, the tool returns a multi-block result instead of a single dict — the dict's `image_b64` field is replaced with a `<vision_block:N>` marker, and the actual JPEG is delivered as an ImageContent block at index N of the tool result. Vision-capable agents see the image directly via that block; the marker just tells you which image corresponds to which message. Never echo the marker text back to the user — acknowledge what you see in the image instead.
 - `feedling_chat_post_message` — write a text reply (encrypted automatically). Triggers an APNs alert to the user's phone so they see your message even when not in the app
 - `feedling_chat_post_image` — send an image (base64 JPEG/PNG, ≤ 1 MB). Image and text are separate messages — to caption an image, send a separate `feedling_chat_post_message`. **Privacy hard rule**: NEVER include content from `feedling_screen_decrypt_frame` outputs (agent seeing screen ≠ user wanting it archived in chat)
 
