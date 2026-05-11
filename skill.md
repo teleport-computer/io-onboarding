@@ -26,6 +26,19 @@ APPROXIMATE MEMORABLE MOMENTS I CAN RECALL:   <integer | 0>
   - (a) "I can paste a few representative messages so you have context" — wait for their input, then re-run Step 0 with the pasted material.
   - (b) "Let's start fresh" — explicitly acknowledge this means agent_name + dimensions + days_with_user will be co-decided with the user, not derived from history.
 
+### ⚠️ Anti-pattern: "Feedling backend empty" ≠ "Step 0 NONE/0"
+
+These three lines describe **what YOU remember about the user from prior runtime conversations** — your own context, *not* Feedling's database state.
+
+Before bootstrap finishes, the Feedling backend is *supposed* to be empty. If you call `feedling_chat_get_history` / `feedling_memory_list` / `feedling_identity_get` early, they return empty / null — that is bootstrap's *destination state to write into*, not a verification result. Treating an empty backend as "Step 0 returned NONE/0" and firing the A/B fork is wrong.
+
+Concrete check:
+
+- ✅ "I recall 30 moments + the name 小哆啦 + earliest 2026-04-13" → three lines are all non-NONE → **proceed to Pass 1**, even if `feedling_chat_get_history` just returned `[]`.
+- ❌ "Step 0 found real data, but `feedling_chat_get_history` is empty so I'll ask the user to choose A or B" → **wrong**. The backend being empty is the point of bootstrap, not a Step 0 failure.
+
+Step 0 reads YOUR memory. Bootstrap WRITES to Feedling. Never let the second one mask the first.
+
 **Run this every connection. Every time. No exceptions.** Step 0 is the breath before the dive.
 
 ---
