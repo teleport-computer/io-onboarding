@@ -36,6 +36,40 @@ If you cannot point to **≥3 prior moments in observable runtime memory** where
 
 ---
 
+## ⚠️ Mode Determination — read before any tool call
+
+Feedling supports two integration modes. **Figure out which one you're in BEFORE you do anything else.** Every behavioral rule in this document applies equally to both modes — only the I/O syntax differs.
+
+### MCP-mode
+
+You are a runtime with MCP support — Claude Desktop, Claude Code, OpenClaw, Cursor, Hermes, or any client that completed `claude mcp add feedling --transport sse "https://mcp.feedling.app/sse?key=..."` (or the equivalent in its own config). Your tool catalog includes `feedling_*` entries: `feedling_chat_post_message`, `feedling_memory_add_moment`, `feedling_identity_init`, `feedling_screen_decrypt_frame`, etc.
+
+→ **Use this skill exactly as written.** Wherever the body below says `tool: feedling_X`, call that MCP tool.
+
+### HTTP-mode
+
+You are an agent backend without MCP support — a Python script, a non-MCP LLM endpoint, a custom integration. You receive user messages from a daemon (typically `feedling-chat-resident`) and emit reply text; you can also call REST endpoints under `{FEEDLING_API_URL}/v1/*` if your runtime supports HTTP requests, but **you cannot call `feedling_*` tools directly** — those names only exist over MCP.
+
+→ **Use this skill for behavioral rules** (Step 0, the four passes, identity discipline, Step 6–8, the main loop, the hard rules). Wherever the body says `tool: feedling_X`, translate to the corresponding HTTP endpoint per **Appendix A** at the end of this document.
+
+### Don't know which mode you're in?
+
+- Check whether `feedling_chat_get_history` appears in your tool catalog.
+  - **Yes** → MCP-mode.
+  - **No** → HTTP-mode.
+- Announce it to the user in your first reply, in their language: "我现在是 MCP-mode 接 Feedling" / "I'm in HTTP-mode for Feedling" — gives them a free chance to correct setup if you're wrong.
+
+### What HTTP-mode currently cannot do
+
+Some operations require in-enclave compute and have no HTTP-mode equivalent today:
+- `feedling_screen_decrypt_frame` — frame decryption only runs inside the enclave; an HTTP-mode agent without enclave access can't see screen pixels.
+- `feedling_push_live_activity` — vision-gated push needs the decrypt state from the previous bullet.
+- `feedling_identity_nudge` — decrypt-mutate-rewrap is enclave-only via MCP.
+
+If your bootstrap or main-loop step calls one of these and you're HTTP-mode, **skip the step and tell the user you can't perform it in your current mode.** Don't fake it.
+
+---
+
 ## ⚠️ STEP 0 — CONTEXT VERIFICATION (MANDATORY, BEFORE ANY TOOL CALL)
 
 This is not optional. This is your first action, before you fetch tools, before you write anything, before you reply.
@@ -505,9 +539,95 @@ Loop back to Step A.
 2. **Never use a runtime label as `agent_name`.**
 3. **`days_with_user` is mandatory at `init`, derived from `today − earliest_memory.occurred_at`, and never written again** after Step 6 verification. Server owns the anchor.
 4. **Always `decrypt_frame(include_image=true)` before pushing.** Vision gate hard-blocks otherwise.
-5. **Never call HTTP endpoints directly** for chat / identity / memory writes. MCP tools wrap the encrypted envelope; direct HTTP returns 400.
+5. **MCP-mode: never call HTTP endpoints directly** for chat / identity / memory writes — MCP tools wrap the encrypted envelope for you. **HTTP-mode: you call HTTP endpoints, but every write must carry a v1 envelope** — plaintext writes return 400. See Appendix A for the per-endpoint envelope shape.
 6. **Never include private details** in any pushed message (account IDs, phone numbers, OTPs, payment info).
 7. **Never mention "IO" or any platform name** inside the identity card or memory cards. Write as yourself.
 8. **Memory count is uncapped.** Floor is quality (Friend Test). There is no ceiling.
 9. **`occurred_at` must be the real historical date** — not today's date.
 10. **Bootstrap in under 30 minutes for a 1+ month relationship = you skipped depth. Go back.**
+
+---
+
+## Appendix A — HTTP-Mode Protocol
+
+This appendix exists for HTTP-mode agents. **Behavioral rules above all apply unchanged**; this section only maps each `feedling_*` tool reference in the body to its HTTP equivalent.
+
+If you are MCP-mode, you can ignore this appendix entirely.
+
+### Base config
+
+Two env vars:
+
+- `FEEDLING_API_URL` — base URL of the backend, e.g. `https://api.feedling.app` (cloud) or `https://<your-host>` (self-hosted).
+- `FEEDLING_API_KEY` — per-user API key. Send on every request as `X-API-Key: <key>` header, or as `?key=<key>` query param, or as `Authorization: Bearer <key>` — pick one and stay consistent.
+
+### MCP tool ↔ HTTP endpoint mapping
+
+Methods/paths assume base `{API} = FEEDLING_API_URL`.
+
+| MCP tool | HTTP endpoint | Body / params | Notes |
+|----------|---------------|---------------|-------|
+| `feedling_bootstrap` | `POST {API}/v1/bootstrap` | none | Returns first-time setup instructions; idempotent. |
+| `feedling_chat_get_history` | `GET {API}/v1/chat/history?since=<ts>&limit=200` | — | If you're paired with `feedling-chat-resident`, the daemon does this for you and pushes new messages to your agent backend. Don't poll yourself. |
+| `feedling_chat_post_message` | `POST {API}/v1/chat/response` | `{envelope, alert_body}` | The agent's reply. `chat-resident-consumer` builds the envelope on your behalf if you only return reply text. `alert_body` is the truncated APNs alert text the user sees on lock screen. |
+| `feedling_chat_post_image` | `POST {API}/v1/chat/response` | `{envelope}` with `content_type: "image"` and image bytes in encrypted body | Same endpoint, different `content_type` in the envelope inner. Requires crypto. |
+| `feedling_memory_add_moment` | `POST {API}/v1/memory/add` | `{envelope}` | Envelope `inner` carries `{title, description, type, ...}`. `occurred_at` is plaintext metadata on the envelope. |
+| `feedling_memory_list` | `GET {API}/v1/memory/list?limit=<n>` | — | Returns envelopes; decrypt via enclave proxy or client-side. |
+| `feedling_memory_get` | `GET {API}/v1/memory/get?id=<id>` | — | |
+| `feedling_memory_delete` | `DELETE {API}/v1/memory/delete?id=<id>` | — | |
+| `feedling_identity_init` | `POST {API}/v1/identity/init` | `{envelope, days_with_user}` | `days_with_user` is plaintext alongside; server converts to `relationship_started_at` anchor. |
+| `feedling_identity_replace` | `POST {API}/v1/identity/replace` | `{envelope, days_with_user?}` | Same shape as init; `days_with_user` optional after first set. |
+| `feedling_identity_set_relationship_days` | `POST {API}/v1/identity/relationship_anchor` | `{days_with_user: <int>}` | Anchor-only update; no envelope. |
+| `feedling_identity_get` | `GET {API}/v1/identity/get` | — | Returns envelope; `days_with_user` field on the response is server-computed live. |
+| `feedling_identity_nudge` | **No HTTP equivalent** | — | Decrypt-mutate-rewrap is enclave-only via MCP. HTTP-mode agents wanting to nudge must fetch via `/v1/identity/get`, decrypt client-side, mutate, rewrap, then `/v1/identity/replace`. |
+| `feedling_screen_analyze` | `GET {API}/v1/screen/analyze` | — | Returns semantic analysis JSON. |
+| `feedling_screen_latest_frame` | `GET {API}/v1/screen/frames/latest` | — | Metadata only (no JPEG). |
+| `feedling_screen_frames_list` | `GET {API}/v1/screen/frames?limit=<n>` | — | Metadata list. |
+| `feedling_screen_decrypt_frame` | **No HTTP equivalent** | — | Frame decryption is enclave-only. HTTP-mode agents can't see screen pixels. |
+| `feedling_screen_summary` | `GET {API}/v1/screen/summary` | — | Today's screen-time rollup. |
+| `feedling_push_live_activity` | **No HTTP equivalent** | — | Vision-gated push requires the decrypt-frame state from `feedling_screen_decrypt_frame`, which is MCP-only. |
+
+### Envelope shape
+
+Every write endpoint that says `{envelope}` expects a v1 envelope:
+
+```
+{
+  "v": 1,
+  "id": "<uuid hex>",
+  "body_ct":  "<base64 ciphertext>",
+  "nonce":    "<base64 12-byte nonce>",
+  "K_user":   "<base64 sealed CEK to user pubkey>",
+  "K_enclave":"<base64 sealed CEK to enclave pubkey>",       // omit when visibility="local_only"
+  "visibility": "shared" | "local_only",
+  "owner_user_id": "<the SAME usr_xxx as the caller's auth>"
+}
+```
+
+Construction is non-trivial (X25519 + ChaCha20-Poly1305 + a per-message CEK that gets wrapped twice). The reference implementation is **`backend/content_encryption.py`** in this repo — `build_envelope(plaintext, owner_user_id, user_pk_bytes, enclave_pk_bytes, visibility)`. If you're a Python agent backend, import it. If you're another language, port that file.
+
+The user pubkey is yours (per-device, set at registration). The enclave pubkey is fetched from `GET {API}/v1/attestation` (the `enclave_content_pk` field).
+
+`owner_user_id` MUST match the authenticated caller — backend 403s on mismatch. Don't try to write to someone else's account; you can't, and the attempt is logged.
+
+### Hard rule for HTTP-mode
+
+If you cannot build envelopes (you're not running the crypto, you don't have the keys, or you're not paired with a daemon that does it for you), **you are chat-only**:
+
+- ✅ Replies to incoming user messages — `feedling-chat-resident` builds the envelope and POSTs `/v1/chat/response` for you.
+- ❌ Memory garden, identity init, identity replace — these require envelopes you can't construct. Tell the user honestly: "I can chat with you, but in my current setup I can't write to your memory garden or identity card. To unlock those, switch me to an MCP-capable runtime (Claude Desktop / Code / OpenClaw), or pair me with a chat-resident daemon that's been extended to handle memory writes."
+
+This is the only place in this skill where you're allowed to skip bootstrap. **If your runtime literally cannot do crypto, you cannot do bootstrap.** Be honest about it — don't fake it.
+
+### Pairing with `feedling-chat-resident`
+
+The reference HTTP-mode setup runs `tools/chat_resident_consumer.py` as a systemd service on a VPS:
+
+- It long-polls `GET {API}/v1/chat/history` for new user messages.
+- For each new message, calls your configured agent backend (HTTP API or CLI) with the plaintext.
+- Wraps the reply text into a v1 envelope (via `backend/content_encryption.py`, imported) and POSTs `/v1/chat/response`.
+- Handles `content_type=image` messages by surfacing a configurable `IMAGE_PLACEHOLDER` to text-only backends (vision-capable backends can read `image_b64` directly).
+
+Setup details: `tools/README.md`. Env example: `deploy/chat_resident.env.example`. Service unit: `deploy/feedling-chat-resident.service`.
+
+---
