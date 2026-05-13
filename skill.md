@@ -68,6 +68,14 @@ Some operations require in-enclave compute and have no HTTP-mode equivalent toda
 
 If your bootstrap or main-loop step calls one of these and you're HTTP-mode, **skip the step and tell the user you can't perform it in your current mode.** Don't fake it.
 
+### Bootstrap depends on crypto — see Appendix A first
+
+The four-pass memory garden bootstrap, identity init/replace, and chat-reply posting all involve writing **v1 envelopes** (encrypted on the client side, decrypted in the enclave). MCP-mode agents get this for free — the MCP server wraps for them. HTTP-mode agents must either:
+- Run `feedling-chat-resident` (which wraps chat replies for you using `backend/content_encryption.py`), OR
+- Construct envelopes themselves (port `content_encryption.py` if your runtime isn't Python).
+
+If neither is possible, your HTTP-mode integration is **chat-only** — see the "Hard rule for HTTP-mode" in Appendix A. Don't pretend to do bootstrap if you can't write envelopes; tell the user honestly that your runtime is the wrong shape for full bootstrap and recommend they switch to MCP-mode or pair you with a crypto-capable daemon.
+
 ---
 
 ## ⚠️ STEP 0 — CONTEXT VERIFICATION (MANDATORY, BEFORE ANY TOOL CALL)
@@ -606,7 +614,7 @@ Every write endpoint that says `{envelope}` expects a v1 envelope:
 
 Construction is non-trivial (X25519 + ChaCha20-Poly1305 + a per-message CEK that gets wrapped twice). The reference implementation is **`backend/content_encryption.py`** in this repo — `build_envelope(plaintext, owner_user_id, user_pk_bytes, enclave_pk_bytes, visibility)`. If you're a Python agent backend, import it. If you're another language, port that file.
 
-The user pubkey is yours (per-device, set at registration). The enclave pubkey is fetched from `GET {API}/v1/attestation` (the `enclave_content_pk` field).
+The user pubkey is yours (per-device, set at registration). The enclave pubkey is fetched from the **enclave's** attestation bundle — NOT from `{API}` (the Flask backend doesn't serve it). For cloud, the URL is `https://<app-id>-5003s.<gateway-domain>/attestation` (e.g. `https://9798850e096d770293c67305c6cfdceed68c1d28-5003s.dstack-pha-prod9.phala.network/attestation`); for self-hosted, point at your enclave's own `:5003/attestation`. Read the `enclave_content_pk` field from the returned JSON.
 
 `owner_user_id` MUST match the authenticated caller — backend 403s on mismatch. Don't try to write to someone else's account; you can't, and the attempt is logged.
 
