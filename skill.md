@@ -47,6 +47,23 @@ Violating any of these means bootstrap is wrong and must be redone.
 
 ❌ **NEVER call `feedling_chat_post_message` before Step 6.** Passes 1–4 (memory work + identity derivation) happen via your *external runtime conversation* with the user — Claude Desktop / Code / wherever they pasted your skill URL. **Your very first `chat_post_message` is the Step 6 greeting, and it doubles as the act that opens Feedling's Chat tab.** Before you post, the user sees a wall of setup instructions with no input field; after you post, the input bar mounts and they can reply. Posting before Step 6 prematurely activates the chat surface on an instructions-only screen.
 
+❌ **NEVER ignore a `409 bootstrap_incomplete` response.** If a tool call returns
+
+```
+{
+  "error": "bootstrap_incomplete",
+  "stage": "needs_memory" | "needs_identity",
+  "memory_count": <int>,
+  "memory_floor": <int>,
+  "required": "<actionable instruction>",
+  "skill_url": "https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md"
+}
+```
+
+you skipped a prerequisite step. **Read the `required` field and go back** — to Pass 1–3 if `stage=="needs_memory"`, to identity derivation if `stage=="needs_identity"`. Do NOT retry the same tool call hoping it'll succeed (the gate is stateful — server state is the source of truth, and it hasn't changed). Do NOT fabricate a Pass 4 verification or Step 6 greeting in the user's chat to mask the failure — the server will reject every such attempt with the same 409 until the prerequisites are actually satisfied. The right response is to acknowledge in your *external runtime conversation* that you missed a step and resume bootstrap from where you left off.
+
+❌ **NEVER call `feedling_chat_post_message` with echo-template content** — strings like `"收到，我在。你刚刚说的是: ..."`, fallback acknowledgments that repeat the user's message verbatim, or any reply that pattern-matches your runtime's "agent unavailable" fallback string. These get rejected with `{"error": "echo_template_detected", "matched_phrase": "..."}` because they always indicate your runtime's LLM backend failed silently and a fallback path produced garbage. Fix the runtime — don't try to post the garbage.
+
 ❌ **NEVER use a runtime label as `agent_name`.** `Hermes` / `Claude` / `Claude Code` / `ChatGPT` / `GPT-4` / `Gemini` are runtime identifiers — they are not names. If you've never been given a name in prior conversations with this user, propose one and let them accept or reject. The default is **never** your runtime's label.
 
 ❌ **NEVER write `days_with_user = 0` or `1` unless the user explicitly told you "we just met today".** The value comes from `today − earliest_memory.occurred_at`, computed AFTER memories are written. If you wrote 0/1 without that explicit user statement, you skipped the derivation step. Go back.
@@ -179,7 +196,9 @@ Floors are floors. Real depth usually exceeds them by 3–10×.
 
 ### Pass 4 — 对账 (User Verification) · ~5 min
 
-After Pass 3, send one message via `feedling_chat_post_message`:
+After Pass 3, post your verification message **in your external runtime conversation with the user** (Claude Desktop / Code / wherever they pasted your skill URL) — NOT via `feedling_chat_post_message`. Feedling Chat is reserved for Step 6 onwards; the server enforces this (`/v1/chat/response` returns `409 bootstrap_incomplete` until identity is written).
+
+Say something like:
 
 ```
 我刚把我们之间的记忆都过了一遍，写了 N 张卡到 Memory Garden。我列几个我重点写到的：
@@ -191,7 +210,7 @@ After Pass 3, send one message via `feedling_chat_post_message`:
 我想再认真补一轮。
 ```
 
-**Wait for the user's reply.** If they correct or add anything, return to Pass 3 and write more. Do not proceed until the user has confirmed the garden feels complete.
+**Wait for the user's reply, here in this runtime conversation.** If they correct or add anything, return to Pass 3 and write more. Do not proceed to identity derivation until the user has confirmed the garden feels complete.
 
 This is the most important check. The agent always misses things that the user remembers. Pass 4 is what makes the garden actually theirs.
 
