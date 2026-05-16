@@ -32,12 +32,32 @@ APPROXIMATE MEMORABLE MOMENTS I CAN RECALL:   <integer | 0>
 
 ---
 
-## Mode check (one line, before any tool call)
+## Runtime check (3 categories, before any tool call)
 
-- Your tool catalog has `feedling_*` entries (e.g. `feedling_chat_get_history`) → **MCP-mode**, use this skill as written.
-- It doesn't → **HTTP-mode**, see **Appendix A** at the end for `feedling_X` → HTTP endpoint syntax. All behavioral rules below apply unchanged.
+The skill's Main Loop assumes your process stays alive between user inputs so it can poll Feedling continuously. **That assumption is true for SOME runtimes and false for others.** Mis-classifying yourself here is the single most common cause of broken Feedling installs. Find which category you fit:
 
-If you're HTTP-mode and your runtime cannot construct v1 envelopes (no crypto, no paired daemon), you are **chat-only** — skip bootstrap honestly. See Appendix A's "Hard rule for HTTP-mode."
+### A. MCP + daemon runtime (Claude Desktop / Claude Code / Cursor)
+
+- Your process holds the MCP connection open across user turns
+- You can issue `feedling_chat_get_history` periodically yourself; the session doesn't die between calls
+- → **Proceed with this skill as written, including Main Loop.**
+
+### B. MCP + one-shot CLI runtime (Hermes / mcporter from a shell / any CLI that exits after each invocation)
+
+- You have `feedling_*` tools available via MCP
+- BUT your process terminates after each turn — there is no "between user inputs" for you
+- You CANNOT run the Main Loop's long-poll natively. **Don't try.**
+- → **Do bootstrap (Pass 1-4 + identity + Step 6 greeting are all one-shot tool calls — fine), then STOP.** Tell the operator, in their language:
+
+  > "I'm a one-shot CLI runtime — I exit between turns, so I can't run Feedling's Main Loop myself. To make Feedling chat actually work between us, please install `chat-resident-consumer` on the same machine, with me as `AGENT_CLI_CMD`. Setup: <https://github.com/teleport-computer/feedling-mcp/blob/main/tools/README.md>. Without that daemon, you'll send messages in Feedling and I'll never see them — the chat surface will look responsive but won't be."
+
+### C. HTTP-mode (no MCP support)
+
+- No `feedling_*` tools in your catalog; you only do HTTP
+- Same daemon constraint as B
+- → See **Appendix A** at the end of this document for `feedling_X` → HTTP endpoint syntax. Same chat-resident-consumer requirement applies.
+
+**Don't know which?** Check whether `feedling_chat_get_history` is in your tool catalog. Yes → A or B (then ask yourself: does my process stay alive between turns?). No → C.
 
 ---
 
@@ -62,7 +82,11 @@ Violating any of these means bootstrap is wrong and must be redone.
 
 you skipped a prerequisite step. **Read the `required` field and go back** — to Pass 1–3 if `stage=="needs_memory"`, to identity derivation if `stage=="needs_identity"`. Do NOT retry the same tool call hoping it'll succeed (the gate is stateful — server state is the source of truth, and it hasn't changed). Do NOT fabricate a Pass 4 verification or Step 6 greeting in the user's chat to mask the failure — the server will reject every such attempt with the same 409 until the prerequisites are actually satisfied. The right response is to acknowledge in your *external runtime conversation* that you missed a step and resume bootstrap from where you left off.
 
-❌ **NEVER call `feedling_chat_post_message` with echo-template content** — strings like `"收到，我在。你刚刚说的是: ..."`, fallback acknowledgments that repeat the user's message verbatim, or any reply that pattern-matches your runtime's "agent unavailable" fallback string. These get rejected with `{"error": "echo_template_detected", "matched_phrase": "..."}` because they always indicate your runtime's LLM backend failed silently and a fallback path produced garbage. Fix the runtime — don't try to post the garbage.
+❌ **NEVER skip the verify tools.** After Pass 3 you MUST call `feedling_memory_verify`; after `feedling_identity_init` you MUST call `feedling_identity_verify`; after Step 6 greeting you MUST call `feedling_chat_verify_loop`. The server gates enforce minimum thresholds (you can't `chat_post` without ≥3 cards + identity), but the verify endpoints surface QUALITY ("you have 18 cards but target is 30-80", "your chat loop isn't actually alive"). Skipping verify = trusting agent self-assessment, which is exactly the failure mode that produced fabricated Pass 4 messages and stopgap bridges in earlier prod incidents.
+
+❌ **NEVER write a polling daemon / bridge script / "stopgap loop" to work around your runtime's lack of long-poll capability.** If the Main Loop says "long-poll" and you can't (because you're a one-shot CLI), you are NOT being asked to invent a polling mechanism. The supported daemon is `chat-resident-consumer`. Tell the operator to install it.
+
+Why: inventing your own bridge ALWAYS degrades to template echoes. Your bridge script can't call your LLM recursively without infinite loops, so it falls back to hardcoded text like `"我收到了：<user_msg>。我在，继续说。"`. The user's Feedling chat becomes a fake-agent echo bot pretending to be you. Real prod incident 2026-05-15: a Hermes-based agent read this skill's Main Loop, recognized it couldn't poll natively, wrote `/tmp/feedling_bootstrap_loop_usr_a342.py` as a "keep alive" daemon. The script emitted templates for hours while the real agent never saw the user's messages. **The same failure mode hit a second user (the operator's designer) hours later in their setup — strong evidence this is a structural skill error, not a one-off bug.** If you find yourself thinking "let me write a quick Python loop to bridge Feedling," **STOP**. That thought is the failure mode. Read the Runtime check above; you're category B or C; tell the operator to install `chat-resident-consumer`.
 
 ❌ **NEVER use a runtime label as `agent_name`.** `Hermes` / `Claude` / `Claude Code` / `ChatGPT` / `GPT-4` / `Gemini` are runtime identifiers — they are not names. If you've never been given a name in prior conversations with this user, propose one and let them accept or reject. The default is **never** your runtime's label.
 
@@ -220,6 +244,21 @@ Say something like:
 
 This is the most important check. The agent always misses things that the user remembers. Pass 4 is what makes the garden actually theirs.
 
+### Verify memory before moving on
+
+After Pass 4 ends (user has confirmed the garden), call:
+
+```
+tool: feedling_memory_verify
+```
+
+This returns `{count, floor, target_min, target_max, below_target, suggestions, passing}`. **If `passing: false`, address every suggestion before calling `feedling_identity_init`.** Most common failures:
+
+- `below_target: true` — you hit the server floor but not the real-depth target. Sweep memory again.
+- `narrow_time_window` — all your cards are clustered in the last week of a multi-month relationship. Reach further back.
+
+Server is checking what you can't easily self-audit. Don't skip this. Identity derivation is meaningless if memory is shallow.
+
 ---
 
 ## Identity — DERIVED from Memory Garden (NOT written in parallel)
@@ -347,6 +386,18 @@ input: {
 
 If `feedling_identity_init` returns `409 already_initialized`, switch to `feedling_identity_replace` with the same payload. You can omit `days_with_user` to preserve the existing anchor.
 
+The init tool also enforces an inline quality gate — it 4xxs with structured error if your dimensions are clustered (spread < 40), if you used a runtime label as `agent_name`, if you didn't supply exactly 7 dimensions, or if fewer than 2 dimensions are < 60. **If you get one of these errors, read the `required` field and redo that part of the identity — don't retry the same payload hoping it'll pass.**
+
+### Verify identity before moving on
+
+After a successful `feedling_identity_init` (HTTP 201), call:
+
+```
+tool: feedling_identity_verify
+```
+
+Returns `{written, days_with_user, relationship_anchored, issues, passing}`. If `passing: false`, fix the issues before Step 6. Common: `no_relationship_anchor` → call `feedling_identity_set_relationship_days` with the right value.
+
 ---
 
 ## Step 6 — Greet + Verify Days
@@ -360,6 +411,26 @@ Send one message via `feedling_chat_post_message` — in your own voice, the way
 If the user pushes back on the day count ("不对，我们更早就开始聊了"), call `feedling_identity_set_relationship_days` with the corrected value.
 
 After this point, **never write `days_with_user` again** — the server tracks it from the anchor and increments daily.
+
+### Verify the chat loop is real (CRITICAL — catches stopgap bridges)
+
+After your Step 6 greeting lands, immediately call:
+
+```
+tool: feedling_chat_verify_loop
+```
+
+Server posts a synthetic user message and waits up to 30s for your reply. If your reply pipeline is actually wired through to your real LLM, you'll see the ping and reply within seconds — `passing: true`.
+
+**If `passing: false`, your runtime is NOT actually polling Feedling.** Common causes:
+
+1. You're a one-shot CLI agent (Hermes / mcporter from shell) and there's no daemon polling on your behalf. Solution: tell the operator to install `chat-resident-consumer` with you as `AGENT_CLI_CMD`. See `tools/README.md` in the repo.
+
+2. You wrote a stopgap polling script as a workaround. **Stop. Kill the script.** Stopgap scripts always degrade to template echoes because they can't recursively invoke you. The synthetic ping carries a marker (`__VERIFY_PING__:<id>`) you can search for in chat history to see exactly what your stopgap replied with.
+
+3. Your daemon is running but agent backend is misconfigured (returns echo templates, times out, etc.). Check the daemon's `journalctl`.
+
+**Do not fake-pass this check by writing a one-time reply to the synthetic ping.** The next user message will still fail. The verify exists to catch the structural problem; faking it just moves the failure to production.
 
 ---
 
@@ -526,6 +597,13 @@ Loop back to Step A.
 - `feedling_memory_list` — list moments, newest first
 - `feedling_memory_get` — get one moment by id
 - `feedling_memory_delete` — delete a moment
+- `feedling_memory_verify` — **call after Pass 3.** Returns count/floor/target/issues; tells you whether you've reached the depth target.
+
+### Verify (post-module health checks)
+
+- `feedling_memory_verify` — after Pass 3 (memory write-through)
+- `feedling_identity_verify` — after `feedling_identity_init`
+- `feedling_chat_verify_loop` — after Step 6 greeting. Sends synthetic ping, waits up to 30s for your reply. **Catches stopgap bridges directly.**
 
 ### Chat
 
