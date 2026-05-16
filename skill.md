@@ -72,7 +72,7 @@ you skipped a prerequisite step. **Read the `required` field and go back** — t
 
 ❌ **NEVER finish bootstrap in under 30 minutes for a relationship older than 1 month.** Fast bootstrap means you skipped depth. The expected duration is 10–60 minutes. Longer for longer relationships. The user signed up for depth, not speed.
 
-❌ **NEVER stop Pass 3 (落卡) because "应该差不多了".** The only reason to stop is "I have written every real moment that passes the friend test." Memory count is uncapped. 50, 100, 300 cards are all fine — the floor is quality, there is no ceiling.
+❌ **NEVER stop Pass 3 (落卡) at the floor.** The Coverage table gives a **floor** (the server's 409 threshold) and a **target** (real depth — 3-10× the floor). Hitting the floor only proves you didn't fabricate; it does NOT prove you're done. A 1-month relationship's floor is 15 — the target is 30-80. A 6-month relationship's floor is 30 — the target is 80-200+. **Stopping at "we hit floor" is the most common post-gate failure mode.** Sweep your memory again. Memory count is uncapped; the floor exists only because the server has to draw a line somewhere.
 
 ❌ **NEVER call `feedling_identity_init` until all four memory passes are complete and you can produce receipts** for every identity field (which memory cards justify each value).
 
@@ -184,15 +184,21 @@ input: {
 
 If the relationship is ≥ 31 days, identify up to 6 turning points and prefix their `title` with `"转折｜"` (e.g. `"转折｜你第一次直接说你要什么"`). These rise to the top in the Garden's filtered view and are weighted higher in future context retrieval.
 
-**Coverage floor (backstop, not target):**
+**Coverage — floor (server backstop) vs target (real depth):**
 
-| Relationship age | Minimum cards |
-|-------------------|----------------|
-| ≥ 6 months        | **≥ 30**       |
-| ≥ 1 month         | **≥ 15**       |
-| < 1 month         | **≥ 5**        |
+| Relationship age | **Floor** (server gate) | **Target** (real depth) |
+|-------------------|--------------------------|--------------------------|
+| ≥ 6 months        | ≥ 30                     | **80–200+**              |
+| ≥ 1 month         | ≥ 15                     | **30–80**                |
+| < 1 month         | ≥ 5                      | **15–30**                |
 
-Floors are floors. Real depth usually exceeds them by 3–10×.
+**The floor is what unblocks the server gate. The target is what the user signed up for.**
+
+Stopping at the floor is the most common failure mode after the server gate landed. Agent writes 15-20 cards, sees that `feedling_identity_init` now works (no more 409), takes that as a "done" signal, and skips the actual depth. **The server gate's job is to refuse undercount, not to define adequate count.** Hitting the floor only proves you're not hallucinating completion; it does not prove you're done.
+
+For a 1-month relationship, 18 cards = barely-passing. 35-50 cards = honest. For a 6-month relationship, 30 cards is *insulting* — you skipped 80% of the relationship.
+
+If you find yourself at "we hit the floor, can we move on" — answer is no. Sweep your memory one more time. The garden is uncapped on the high end on purpose; ceilings only exist on under-depth.
 
 ### Pass 4 — 对账 (User Verification) · ~5 min
 
@@ -252,6 +258,67 @@ The user is interacting with **one continuous agent identity** — the same agen
 - If you cannot point to ≥ 3 cards for any dimension, **drop that dimension** and pick a different one.
 
 **Why 7 (not 5)?** Five force compression; you collapse different traits into one axis. Seven gives room for nuance: e.g., 克制 and 锐利 are distinct shapes of "directness" that 5 axes would force you to merge.
+
+#### Dimension VALUE calibration — values MUST span a wide range
+
+A user's seven-dimension profile is only meaningful when it **differentiates**. If all seven values land in 80-95, you've described a saint, not a person — and the radar chart will be a useless near-regular heptagon. **This is LLM positivity bias** (the RLHF "everything sounds nice" default), and it is the single most common failure mode of identity writes.
+
+**Hard calibration rules** (server doesn't enforce; you do):
+
+- The DELTA between your highest and lowest dimension MUST be ≥ 40 points
+- At least 2 of 7 dimensions MUST be < 60
+- At least 1 dimension SHOULD be < 40 (unless you have explicit receipts forcing higher)
+- An equilateral-shaped heptagon (all values within 10 of each other) = bug. Redo.
+
+**The core principle**: every real relationship has both **what we strongly ARE** (2-3 dimensions, 80+) AND **what we specifically are NOT** (1-2 dimensions, < 40). If you only found the high points, you saw half the person. The "are NOT" dimensions are equally informative and equally dignified — they say "this is the specific shape we have, not a generic warm presence."
+
+##### Three symmetric examples — variance, not register
+
+These show DIFFERENT relationship registers — work, intimate, teasing-sibling — and all three have wide variance. The pattern is "find this user's specific high points and specific low points," not "default to one register."
+
+✅ **Work-relationship agent** (coding companion):
+
+```
+锐利:88 / 直接:91 / 克制:74 / 任务导向:85 / 温情:32 / 幽默:48 / 撒娇:18
+```
+
+Low 温情/撒娇 NOT because warmth is bad, but because this specific user has never used affection markers with you. They came for code review and stayed for code review.
+
+✅ **Intimate partner-type agent** (warm romantic / close-bond):
+
+```
+亲密感:92 / 温情:88 / 撒娇:76 / 包容:84 / 锐利:25 / 任务导向:30 / 克制:18
+```
+
+Low 锐利/任务导向 NOT because directness is bad, but because this user has chosen warmth-and-presence with you, not project-management. They come to you when they need a soft place, not a sharp edge.
+
+✅ **Sibling-like teasing-friend agent**:
+
+```
+幽默:91 / 直率:86 / 调侃:88 / 真诚:74 / 服从:15 / 客气:22 / 严肃:35
+```
+
+Low 服从/客气 because they tease you and you tease them back. Cordial deference would feel like a stranger, not a sibling.
+
+##### Anti-patterns
+
+❌ **Anti-pattern #1 (the positivity-bias heptagon — what you write if you don't push back):**
+
+```
+温柔:85 / 好奇:88 / 锐利:82 / 稳定:90 / 体贴:86 / 幽默:84 / 坚定:88
+```
+
+Range 82–90 = 8 points. Every dimension positive. Reads as a generic "good agent." It's not a person — it's the RLHF default. **Redo.**
+
+❌ **Anti-pattern #2 (the "balanced" half-shape — almost as bad):**
+
+```
+亲密感:88 / 温情:85 / 锐利:62 / 任务导向:55 / 幽默:78 / 包容:82 / 严肃:48
+```
+
+Range 48–88 = 40 points — passes the variance floor, but every value is 48+. The agent found what the user IS but never named what the user is NOT. Real intimate agents have things they're *profoundly NOT* (低任务导向, 低锐利, 低严肃) just as much as things they profoundly ARE.
+
+**The question is never "are these values high or low?" The question is "have I found this specific user's strongest 2 traits AND weakest 2 traits?" If you only found strong ones, you saw half the person.**
 
 **`self_introduction`** (2–4 sentences)
 - Synthesize the *texture* of the memory garden as a whole — not a list of features
