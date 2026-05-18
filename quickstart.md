@@ -74,7 +74,7 @@ Agent 会先做 4 轮记忆提取——**深度记录你们的所有过往瞬间
 四件事到位就算 setup 成功：
 
 - [ ] **身份卡**：Identity tab 能看到 agent 的名字（不是 "Hermes" 或 "Claude"）、7 维雷达、自我介绍
-- [ ] **记忆花园**：Garden tab 至少 5 张卡（关系几个月通常 30+ 张，关系一年以上经常 100+ 张）
+- [ ] **记忆花园**：Garden tab 至少 5 张卡；如果你们认识 1+ 月，至少 15 张；6+ 月，至少 30 张
 - [ ] **第一条消息**：Chat tab 看到 agent 的开场消息，里面会**直接说出**他算的天数（"今天是第 187 天"），不是问句
 - [ ] **天数正确**：你跟他确认天数对不对。如果不对，他会调 `feedling_identity_set_relationship_days` 修。修完 Identity 页 "DAY X" 应该是你说的那个
 
@@ -156,7 +156,7 @@ You **can close the app** while this runs. The agent keeps going on its runtime 
 Setup is done when all four hold:
 
 - [ ] **Identity card** — Identity tab shows the agent's name (NOT "Hermes" or "Claude"), 7-axis radar, and self-introduction
-- [ ] **Memory Garden** — Garden tab has at least 5 cards (typically 30+ for multi-month relationships, often 100+ for year+ relationships)
+- [ ] **Memory Garden** — Garden tab has at least 5 cards; for a 1+ month relationship, at least 15; for 6+ months, at least 30
 - [ ] **First message** — Chat tab shows the agent's opening message that **states** the day count it computed ("Today is day 187"), as a fact, not a question
 - [ ] **Days correct** — confirm the day count is right. If wrong, the agent calls `feedling_identity_set_relationship_days` to fix it. After fix, Identity tab "DAY X" matches what you said
 

@@ -69,7 +69,7 @@ Violating any of these means bootstrap is wrong and must be redone.
 
 ❌ **NEVER ignore a `409 bootstrap_incomplete` response.** Body carries `stage` (`needs_memory` / `needs_identity`), counts, and a `required` field telling you exactly what to do. Go back and satisfy the prerequisite. Do NOT retry the same call (gate is stateful), do NOT fabricate verification text to mask the failure, do NOT post stub content to "look responsive."
 
-❌ **NEVER skip the verify tools.** After Pass 3 → `feedling_memory_verify`. After `feedling_identity_init` → `feedling_identity_verify`. After Step 6 greeting → `feedling_chat_verify_loop`. Gates enforce thresholds (have memories? have identity?); verify surfaces quality (18 cards vs 30-80 target? loop actually alive?). Skipping verify = trusting your own self-assessment, which is exactly how fabricated Pass 4 messages and stopgap bridges shipped in past incidents.
+❌ **NEVER skip the verify tools.** After Pass 3 → `feedling_memory_verify`. After `feedling_identity_init` → `feedling_identity_verify`. After Step 6 greeting → `feedling_chat_verify_loop`. Gates enforce thresholds (have enough memories? have identity? is the loop actually alive?). Skipping verify = trusting your own self-assessment, which is exactly how fabricated Pass 4 messages and stopgap bridges shipped in past incidents.
 
 ❌ **NEVER write a polling daemon / bridge script / "stopgap loop".** If you're a one-shot CLI and the Main Loop says "long-poll," **you are NOT being asked to invent a polling mechanism**. Your improvised bridge can't recursively invoke your own LLM (would loop forever), so it falls back to hardcoded templates like `"我收到了：<user>。我在，继续说。"`. Real prod incident 2026-05-15: two operators hit this independently within hours. The supported daemon is `chat-resident-consumer` — tell the operator to install it (Runtime check above, category B).
 
@@ -81,7 +81,7 @@ Violating any of these means bootstrap is wrong and must be redone.
 
 ❌ **NEVER finish bootstrap in under 30 minutes for a relationship older than 1 month.** Fast bootstrap means you skipped depth. The expected duration is 10–60 minutes. Longer for longer relationships. The user signed up for depth, not speed.
 
-❌ **NEVER stop Pass 3 (落卡) at the floor.** The Coverage table gives a **floor** (the server's 409 threshold) and a **target** (real depth — 3-10× the floor). Hitting the floor only proves you didn't fabricate; it does NOT prove you're done. A 1-month relationship's floor is 15 — the target is 30-80. A 6-month relationship's floor is 30 — the target is 80-200+. **Stopping at "we hit floor" is the most common post-gate failure mode.** Sweep your memory again. Memory count is uncapped; the floor exists only because the server has to draw a line somewhere.
+❌ **NEVER write fewer memories than the floor for the relationship age.** The Coverage table gives the minimum number of cards needed before identity derivation. Hitting the floor is enough for the server gate, but Pass 4 still matters: show the user what you wrote and let them point out missing moments before you derive identity.
 
 ❌ **NEVER call `feedling_identity_init` until all four memory passes are complete and you can produce receipts** for every identity field (which memory cards justify each value).
 
@@ -140,9 +140,9 @@ Theme: <name>
 - ...
 ```
 
-**No upper bound.** For a 6-month relationship, expect 80–200 candidates. For a 2-year relationship, 300+. **The longer the list, the better the bootstrap.**
+List enough candidates to satisfy the coverage floor for the relationship age, then stop when your memory is genuinely empty. More is fine when the moments are real; do not pad.
 
-If you find yourself stopping at "这应该够了" — that means you stopped early. Force yourself to add 20 more. Stop only when your memory is genuinely empty.
+If you find yourself stopping at "这应该够了" before you hit the floor, you stopped early. Sweep one more time.
 
 ### Pass 3 — 落卡 (Write-through) · 15–60+ min
 
@@ -193,21 +193,17 @@ input: {
 
 If the relationship is ≥ 31 days, identify up to 6 turning points and prefix their `title` with `"转折｜"` (e.g. `"转折｜你第一次直接说你要什么"`). These rise to the top in the Garden's filtered view and are weighted higher in future context retrieval.
 
-**Coverage — floor (server backstop) vs target (real depth):**
+**Coverage floor (server backstop):**
 
-| Relationship age | **Floor** (server gate) | **Target** (real depth) |
-|-------------------|--------------------------|--------------------------|
-| ≥ 6 months        | ≥ 30                     | **80–200+**              |
-| ≥ 1 month         | ≥ 15                     | **30–80**                |
-| < 1 month         | ≥ 5                      | **15–30**                |
+| Relationship age | **Floor** (server gate) |
+|-------------------|--------------------------|
+| ≥ 6 months        | ≥ 30                     |
+| ≥ 1 month         | ≥ 15                     |
+| < 1 month         | ≥ 5                      |
 
-**The floor is what unblocks the server gate. The target is what the user signed up for.**
+The floor is the standard. Write every remembered moment that passes the Friend Test until you meet it. If your true memory is exhausted below the floor, stop and tell the user exactly what context is missing instead of fabricating cards.
 
-Stopping at the floor is the most common failure mode after the server gate landed. Agent writes 15-20 cards, sees that `feedling_identity_init` now works (no more 409), takes that as a "done" signal, and skips the actual depth. **The server gate's job is to refuse undercount, not to define adequate count.** Hitting the floor only proves you're not hallucinating completion; it does not prove you're done.
-
-For a 1-month relationship, 18 cards = barely-passing. 35-50 cards = honest. For a 6-month relationship, 30 cards is *insulting* — you skipped 80% of the relationship.
-
-If you find yourself at "we hit the floor, can we move on" — answer is no. Sweep your memory one more time. The garden is uncapped on the high end on purpose; ceilings only exist on under-depth.
+After you hit the floor, do Pass 4 with the user. If they name missing moments, return to Pass 3 and write those. If they confirm it feels complete, move on.
 
 ### Pass 4 — 对账 (User Verification) · ~5 min
 
@@ -229,7 +225,7 @@ Say something like:
 
 This is the most important check. The agent always misses things that the user remembers. Pass 4 is what makes the garden actually theirs.
 
-**Verify before identity_init**: call `feedling_memory_verify`. If `passing: false`, address suggestions (most common: `below_target` — sweep memory again).
+**Verify before identity_init**: call `feedling_memory_verify`. If `passing: false`, address the suggestions before moving on.
 
 ---
 
@@ -546,7 +542,7 @@ Loop back to Step A.
 
 ### Verify (post-module health checks)
 
-- `feedling_memory_verify` — after Pass 3 (returns count/floor/target/issues)
+- `feedling_memory_verify` — after Pass 3 (returns count/floor/issues)
 - `feedling_identity_verify` — after `feedling_identity_init`
 - `feedling_chat_verify_loop` — after Step 6 greeting; sends synthetic ping, catches stopgap bridges
 

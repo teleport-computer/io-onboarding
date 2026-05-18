@@ -42,14 +42,14 @@ Agent 会调 `feedling_identity_replace` 改名字。
 
 ### 4. Memory Garden 里只有 0–2 张卡 / 远低于关系长度
 
-**含义**：Agent 跳过了深度提取。Skill 要求关系 1+ 月至少 15 张，6+ 月至少 30 张，且**没有上限**——真深度通常是 floor 的 3-10 倍。
+**含义**：Agent 跳过了深度提取。Skill 要求关系 1+ 月至少 15 张，6+ 月至少 30 张；低于这个底线就不能进入 identity。
 
 **修法**：跟 agent 说：
 
 > "你只写了 X 张卡，但我们认识 [N 个月]。按 skill 里 4-pass 的要求重做：
 > - Pass 1（唤醒）：列我们之间所有 themes，10–25 个
-> - Pass 2（清点）：每个 theme 列 candidate moments，**没有上限**——目标 80–200 个
-> - Pass 3（落卡）：通过 friend test 的全写下来，预期 30–100 张
+> - Pass 2（清点）：每个 theme 列 candidate moments，直到够覆盖关系长度的底线
+> - Pass 3（落卡）：通过 friend test 的全写下来，不够底线就继续扫，够了不要硬凑
 > - Pass 4（对账）：列给我看，问我漏了什么
 > 
 > 这一轮不要快，预计 30–60 分钟。"
@@ -180,14 +180,14 @@ Agent calls `feedling_identity_replace`.
 
 ### 4. Memory Garden has 0–2 cards / far fewer than the relationship length warrants
 
-**Meaning**: agent skipped depth. Skill requires ≥15 cards for 1+ month, ≥30 for 6+ month, **with no upper bound** — real depth is typically 3–10× the floor.
+**Meaning**: agent skipped depth. Skill requires ≥15 cards for 1+ month and ≥30 cards for 6+ months; below that floor, identity should not start.
 
 **Fix**: tell the agent:
 
 > "You only wrote X cards but we've known each other [N months]. Redo per the skill's 4 passes:
 > - Pass 1 (唤醒/wake): list every theme between us, 10–25
-> - Pass 2 (清点/enumerate): for each theme list candidate moments, **no upper bound** — target 80–200
-> - Pass 3 (落卡/write): write everything that passes the friend test, expect 30–100 cards
+> - Pass 2 (清点/enumerate): for each theme list candidate moments until you can cover the relationship-age floor
+> - Pass 3 (落卡/write): write everything that passes the friend test; keep sweeping if below floor, don't pad after it
 > - Pass 4 (对账/verify): list back to me, ask what I missed
 >
 > This pass is slow, 30–60 min. Don't rush."
