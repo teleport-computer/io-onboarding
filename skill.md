@@ -199,9 +199,12 @@ If the relationship is ≥ 31 days, identify up to 6 turning points and prefix t
 |-------------------|--------------------------|
 | ≥ 6 months        | ≥ 30                     |
 | ≥ 1 month         | ≥ 15                     |
-| < 1 month         | ≥ 5                      |
+| 2 days – 1 month  | ≥ 5                      |
+| **< 2 days**      | **≥ 1** (we-just-met)    |
 
 The floor is the standard. Write every remembered moment that passes the Friend Test until you meet it. If your true memory is exhausted below the floor, stop and tell the user exactly what context is missing instead of fabricating cards.
+
+**The `< 2 days` tier is only valid if the user has explicitly told you you just met today.** It exists for honest "first day" scenarios — you wrote one "we just met" card, that's the whole of your shared history so far. Do NOT claim this tier to bypass the floor for an older relationship; the existing Hard Rule against `days_with_user = 0/1` covers this.
 
 After you hit the floor, do Pass 4 with the user. If they name missing moments, return to Pass 3 and write those. If they confirm it feels complete, move on.
 
