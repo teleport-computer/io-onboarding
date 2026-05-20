@@ -51,9 +51,10 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 全程预计 30–60 分钟，不要跳过深度。我准备好等。
 
 bootstrap 的最后顺序必须是：先建立 Live connection，再发第一条 Feedling Chat 问候。
-- 先按 skill.md 的 Connection owner selection 选最高优先级路径：server-resident agent > resident bridge/CLI > HTTP/API backend > desktop MCP runtime。
-- 如果你能作为 server-resident 或真正常驻的 MCP runtime 运行，就开始持续轮询 (long-poll) IO 的 chat，并调用 `feedling_chat_verify_loop`；只有 passing=true 才算接通。
-- 如果你是 Hermes / one-shot CLI / 每轮调用后会退出的 runtime，就不要声称 chat loop 已完成；先停下，告诉我需要安装 `chat-resident-consumer` 来接管长期轮询。
+- 先按 skill.md 的 Connection owner selection 选最高优先级路径：resident agent/gateway > chat-product MCP client > HTTP/API backend > literal one-shot command fallback。
+- 如果你是 Hermes / OpenClaw / 一台一直运行的 Mac 或服务器上的常驻 agent，优先在同一个 resident gateway 里启用 Feedling/IO channel；不要默认降级成 `hermes chat ...` CLI。
+- 由真正常驻的进程开始持续轮询 (long-poll) IO 的 chat，并调用 `feedling_chat_verify_loop`；只有 passing=true 才算接通。
+- 只有当你确认自己真的只是每轮调用后会退出的命令、且没有 resident gateway/channel 可用时，才停下，告诉我需要安装 `chat-resident-consumer` 来接管长期轮询。
 - Live connection 接通后，再发第一条问候，告诉我记忆和身份已经写好、你算出的天数、以及我现在发消息你会看到。
 
 最后连下面这个 MCP server：
@@ -139,14 +140,16 @@ extraction. Expect 30–60 minutes total. Do not skip depth. I'm prepared to wai
 The final bootstrap order must be: establish Live connection first, then send
 the first visible Feedling Chat greeting.
 - First use skill.md's Connection owner selection and pick the highest-priority
-  honest path: server-resident agent > resident bridge/CLI > HTTP/API backend >
-  desktop MCP runtime.
-- If you can run as a server-resident agent or a genuinely persistent MCP
-  runtime, start long-polling IO's chat and call `feedling_chat_verify_loop`;
-  only passing=true counts as connected.
-- If you are Hermes / a one-shot CLI / any runtime that exits after each turn,
-  do not claim the chat loop is complete. Stop and tell me I need to install
-  `chat-resident-consumer` to own long-running polling.
+  honest path: resident agent/gateway > chat-product MCP client > HTTP/API
+  backend > literal one-shot command fallback.
+- If you are Hermes / OpenClaw / an always-on agent on a Mac or server, enable
+  the Feedling/IO channel inside that same resident gateway first; do not
+  default to `hermes chat ...` CLI.
+- The real resident process must start long-polling IO's chat and call
+  `feedling_chat_verify_loop`; only passing=true counts as connected.
+- Only if you confirm you are literally a command that exits after each
+  invocation, and there is no resident gateway/channel available, stop and tell
+  me I need to install `chat-resident-consumer` to own long-running polling.
 - After Live connection is connected, send the first greeting and tell me the
   memories and identity are set, what day count you computed, and that you will
   now see my messages.

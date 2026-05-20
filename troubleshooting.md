@@ -90,16 +90,16 @@ Agent 调 `feedling_identity_replace`。
 
 iOS 上的信号：进度条里 "Chat loop" 那一行显示 `send a message →`（说明 agent 发过初始消息但没轮询），或者 `—`（说明连初始消息都没发）。
 
-**根因**：bootstrap 结束后必须有一个真实的长期 reply pipeline。常驻 MCP runtime 可以自己持续轮询；Hermes / one-shot CLI / 每轮调用后会退出的 runtime 不能自己轮询，必须让 `chat-resident-consumer` 这种常驻进程接管。
+**根因**：bootstrap 结束后必须有一个真实的长期 reply pipeline。Hermes / OpenClaw 这类常驻 gateway 应该像 Telegram/WeChat/Feishu bot 一样启用一个 Feedling/IO channel，由同一个 resident process 持续轮询并回复。只有字面意义上的 one-shot command（例如每次只运行一次 `hermes chat ...` 然后退出）才需要 `chat-resident-consumer` 这种 fallback bridge。
 
 **最常见原因（按概率）：**
 
-- **选错 Live connection owner**——按 [`skill.md` 的 "Connection owner selection"](./skill.md#connection-owner-selection-before-any-tool-call) 重新选最高优先级路径：server-resident agent > resident bridge/CLI > HTTP/API backend > desktop MCP runtime。能走 server-resident 就不要用本地桥；one-shot CLI 不能假装自己是 desktop MCP 常驻 runtime。
-- **Agent 把 runtime 分类错了**——只要它不会在两次用户输入之间保持进程常驻，它就不是 Category A；即使它有 `feedling_*` MCP tools，也只能是 Category B。让它重新读 [`skill.md` 的 "Runtime check"](./skill.md#runtime-check-3-categories-before-any-tool-call)。
-  - 给它的 prompt：*"先不要继续 onboarding。回答：你是否会在我不发下一条 prompt 的情况下保持进程常驻并自己轮询？如果否，你必须按 Category B 停下，并告诉我要配置 chat-resident-consumer。"*
+- **选错 Live connection owner**——按 [`skill.md` 的 "Connection owner selection"](./skill.md#connection-owner-selection-before-any-tool-call) 重新选最高优先级路径：resident agent/gateway > chat-product MCP client > HTTP/API backend > literal one-shot command fallback。Hermes/OpenClaw 如果有 resident gateway，就应该先找/启用 Feedling channel，而不是默认走 CLI bridge。
+- **Agent 把 Hermes/OpenClaw 误判成 one-shot CLI**——让它先检查 resident gateway/channel registry。缺少 Feedling channel 的结论应该是“启用或实现 Feedling adapter”，不是“把自己降级成 `hermes chat ...`”。
+  - 给它的 prompt：*"先不要继续 onboarding。回答：你现在是否运行在 Hermes/OpenClaw resident gateway 里？这个 gateway 里是否已有 Feedling/IO channel/adapter？如果有，启用它并用当前 key 轮询；如果没有，报告需要实现该 adapter。不要默认使用 hermes chat CLI 或 chat-resident-consumer。"*
 - **`feedling_chat_verify_loop passing=true` 被误读**——这个结果只说明 synthetic ping 后出现了一条 agent-role 回复；如果回复来自 resident / bridge / fallback template，它不能证明 one-shot agent 本人还活着。用真实 app 消息和 resident 前台日志验证。
-- **常驻 MCP runtime 没启动 long-poll**——如果 agent 确实是 Category A，让它重新读 [`skill.md` 的 "Main Loop"](./skill.md#main-loop-after-bootstrap-is-done) 那一节，然后开始持续轮询 `feedling_chat_get_history`，每 30 秒一次。
-- **Agent 的 runtime 不支持长驻 polling**——claude.ai 网页、Hermes one-shot CLI、普通 shell 单次调用都是请求-响应模型，根本不会自己 poll 你的 IO 消息。**这种情况不是换一句 prompt 能修的**：配置 `chat-resident-consumer`，或换成真正常驻的 runtime。
+- **常驻 gateway 没启动 Feedling long-poll**——如果 agent 确实是 resident，让它检查 gateway logs：是否有 Feedling channel startup、是否用当前 onboarding key、是否 poll `/v1/chat/poll`、是否 POST `/v1/chat/response`。
+- **真的只有 one-shot command**——普通 shell 单次调用、每轮退出的 CLI、不能驻留的网页产品都不会自己 poll IO 消息。**这种情况不是换一句 prompt 能修的**：配置 `chat-resident-consumer`，或换成真正常驻的 runtime。
 - **Vision gate 拦了**：agent 想 `feedling_push_live_activity` 但没先 `feedling_screen_decrypt_frame(include_image=true)`，server 返回 `vision_gate_missing_decrypt`。让 agent 先 decrypt frame。
 - **Agent 循环 retry 但失败**：Settings → Health Check → "Chat round-trip" 行。如果显示 "no agent reply yet"，server 也没收到，问题在 agent 侧。
 
@@ -235,31 +235,35 @@ iOS signal: in the progress checklist, the **Chat loop** row shows
 `—` (agent didn't even send the greeting).
 
 **Root cause**: after bootstrap there must be a real long-running reply
-pipeline. Persistent MCP runtimes can poll by themselves; Hermes / one-shot
-CLIs / runtimes that exit after each invocation cannot. Those need
-`chat-resident-consumer` or another real resident process to own polling.
+pipeline. Hermes / OpenClaw-style resident gateways should add a Feedling/IO
+channel the same way they add Telegram/WeChat/Feishu channels, and that same
+resident process should poll and reply. Only a literal one-shot command
+(`hermes chat ...` invoked once and then exiting) needs the
+`chat-resident-consumer` fallback bridge.
 
 **Most common causes (by probability):**
 
-- **Wrong Live connection owner** — re-run [`skill.md` "Connection owner selection"](./skill.md#connection-owner-selection-before-any-tool-call) and pick the highest-priority honest path: server-resident agent > resident bridge/CLI > HTTP/API backend > desktop MCP runtime. If server-resident works, don't use a local bridge; a one-shot CLI must not pretend to be a persistent desktop MCP runtime.
-- **Agent misclassified its runtime** — if it does not stay alive between
-  user turns, it is not Category A. Having `feedling_*` MCP tools only makes
-  it Category B. Tell it to re-read [`skill.md` "Runtime check"](./skill.md#runtime-check-3-categories-before-any-tool-call).
-  - Try this prompt: *"Pause onboarding. Answer first: do you stay alive and
-    keep polling without me sending another prompt? If no, you must classify
-    yourself as Category B and tell me to configure chat-resident-consumer."*
+- **Wrong Live connection owner** — re-run [`skill.md` "Connection owner selection"](./skill.md#connection-owner-selection-before-any-tool-call) and pick the highest-priority honest path: resident agent/gateway > chat-product MCP client > HTTP/API backend > literal one-shot command fallback. If Hermes/OpenClaw has a resident gateway, look for or enable a Feedling channel before considering any CLI bridge.
+- **Agent misclassified Hermes/OpenClaw as one-shot CLI** — first inspect the
+  resident gateway/channel registry. If Feedling is missing, the answer is
+  "enable or implement the Feedling adapter", not "run `hermes chat ...`".
+  - Try this prompt: *"Pause onboarding. Answer first: are you running inside
+    the Hermes/OpenClaw resident gateway? Does that gateway have a Feedling/IO
+    channel/adapter? If yes, enable it with this key and poll from there. If
+    no, report that the adapter needs implementation. Do not default to Hermes
+    CLI or chat-resident-consumer."*
 - **`feedling_chat_verify_loop passing=true` was misread** — it only proves
   that an agent-role message appeared after the synthetic ping. If a resident /
   bridge / fallback template generated that message, it does not prove the
   one-shot agent itself is alive. Verify with a real app message and the
   resident's foreground logs.
-- **A real persistent MCP runtime didn't start long-polling** — if the agent
-  truly is Category A, tell it to re-read [`skill.md` "Main Loop"](./skill.md#main-loop-after-bootstrap-is-done)
-  and poll `feedling_chat_get_history` every ~30 seconds.
-- **Your agent's runtime doesn't support long-running polling** — claude.ai web,
-  Hermes one-shot CLI, and ordinary shell invocations are request-response
-  models. This is not fixed by another prompt: configure `chat-resident-consumer`
-  or switch to a genuinely persistent runtime.
+- **A real resident gateway didn't start Feedling long-polling** — check gateway
+  logs for Feedling channel startup, current onboarding key, `/v1/chat/poll`,
+  and `/v1/chat/response`.
+- **Your runtime is truly one-shot** — ordinary shell invocations, per-turn
+  CLIs, and non-resident web products are request-response models. This is not
+  fixed by another prompt: configure `chat-resident-consumer` or switch to a
+  genuinely persistent runtime.
 - **Vision gate blocked the push**: agent tried `feedling_push_live_activity`
   without first calling `feedling_screen_decrypt_frame(include_image=true)` —
   server returns `vision_gate_missing_decrypt`. Tell agent to decrypt the
