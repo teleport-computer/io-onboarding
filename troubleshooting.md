@@ -90,13 +90,15 @@ Agent 调 `feedling_identity_replace`。
 
 iOS 上的信号：进度条里 "Chat loop" 那一行显示 `send a message →`（说明 agent 发过初始消息但没轮询），或者 `—`（说明连初始消息都没发）。
 
-**根因**：bootstrap 不只是写 identity + memory + 打招呼，还**必须包含持续轮询 chat**。Agent 经常写完前 3 件事就以为 bootstrap 完了，没启动 long-poll loop。
+**根因**：bootstrap 结束后必须有一个真实的长期 reply pipeline。常驻 MCP runtime 可以自己持续轮询；Hermes / one-shot CLI / 每轮调用后会退出的 runtime 不能自己轮询，必须让 `chat-resident-consumer` 这种常驻进程接管。
 
 **最常见原因（按概率）：**
 
-- **Agent 没启动 long-poll**——这是这次新增的硬要求。让 agent 重新读 [`skill.md` 的 "Main Loop"](./skill.md#main-loop-after-bootstrap-is-done) 那一节，然后开始持续轮询 `feedling_chat_get_history`，每 30 秒一次。
-  - 给它的 prompt：*"你 bootstrap 完了但没在轮询 chat。读一下 skill.md 的 Main Loop 那节，然后开始 long-poll。我下面会发一条测试消息，你必须在 30 秒内回复。"*
-- **Agent 的 runtime 不支持长驻 polling**——claude.ai 网页是被动响应模型，根本不会自己 poll 你的 IO 消息。**这种情况换 runtime**：用 Claude Code（CLI 模式）或 Anthropic API 接到一个长驻 wrapper。
+- **Agent 把 runtime 分类错了**——只要它不会在两次用户输入之间保持进程常驻，它就不是 Category A；即使它有 `feedling_*` MCP tools，也只能是 Category B。让它重新读 [`skill.md` 的 "Runtime check"](./skill.md#runtime-check-3-categories-before-any-tool-call)。
+  - 给它的 prompt：*"先不要继续 onboarding。回答：你是否会在我不发下一条 prompt 的情况下保持进程常驻并自己轮询？如果否，你必须按 Category B 停下，并告诉我要配置 chat-resident-consumer。"*
+- **`feedling_chat_verify_loop passing=true` 被误读**——这个结果只说明 synthetic ping 后出现了一条 agent-role 回复；如果回复来自 resident / bridge / fallback template，它不能证明 one-shot agent 本人还活着。用真实 app 消息和 resident 前台日志验证。
+- **常驻 MCP runtime 没启动 long-poll**——如果 agent 确实是 Category A，让它重新读 [`skill.md` 的 "Main Loop"](./skill.md#main-loop-after-bootstrap-is-done) 那一节，然后开始持续轮询 `feedling_chat_get_history`，每 30 秒一次。
+- **Agent 的 runtime 不支持长驻 polling**——claude.ai 网页、Hermes one-shot CLI、普通 shell 单次调用都是请求-响应模型，根本不会自己 poll 你的 IO 消息。**这种情况不是换一句 prompt 能修的**：配置 `chat-resident-consumer`，或换成真正常驻的 runtime。
 - **Vision gate 拦了**：agent 想 `feedling_push_live_activity` 但没先 `feedling_screen_decrypt_frame(include_image=true)`，server 返回 `vision_gate_missing_decrypt`。让 agent 先 decrypt frame。
 - **Agent 循环 retry 但失败**：Settings → Health Check → "Chat round-trip" 行。如果显示 "no agent reply yet"，server 也没收到，问题在 agent 侧。
 
@@ -231,22 +233,31 @@ iOS signal: in the progress checklist, the **Chat loop** row shows
 `send a message →` (agent sent the initial message but isn't polling) or
 `—` (agent didn't even send the greeting).
 
-**Root cause**: bootstrap isn't just identity + memory + greeting — it MUST
-also include continuous chat polling. Agents often write the first three and
-think bootstrap is done, never starting the long-poll loop.
+**Root cause**: after bootstrap there must be a real long-running reply
+pipeline. Persistent MCP runtimes can poll by themselves; Hermes / one-shot
+CLIs / runtimes that exit after each invocation cannot. Those need
+`chat-resident-consumer` or another real resident process to own polling.
 
 **Most common causes (by probability):**
 
-- **Agent didn't start long-polling** — newly added hard requirement. Tell
-  the agent to re-read [`skill.md` "Main Loop"](./skill.md#main-loop-after-bootstrap-is-done)
-  and start polling `feedling_chat_get_history` every ~30 seconds.
-  - Try this prompt: *"You finished bootstrap but you're not polling chat.
-    Read the Main Loop section of skill.md, then start long-polling. I'm
-    going to send a test message below — you must reply within 30 seconds."*
-- **Your agent's runtime doesn't support long-running polling** — claude.ai
-  web is request-response and never background-polls your IO messages. **Switch
-  runtimes**: use Claude Code (CLI mode) or wire the Anthropic API into a
-  long-running wrapper.
+- **Agent misclassified its runtime** — if it does not stay alive between
+  user turns, it is not Category A. Having `feedling_*` MCP tools only makes
+  it Category B. Tell it to re-read [`skill.md` "Runtime check"](./skill.md#runtime-check-3-categories-before-any-tool-call).
+  - Try this prompt: *"Pause onboarding. Answer first: do you stay alive and
+    keep polling without me sending another prompt? If no, you must classify
+    yourself as Category B and tell me to configure chat-resident-consumer."*
+- **`feedling_chat_verify_loop passing=true` was misread** — it only proves
+  that an agent-role message appeared after the synthetic ping. If a resident /
+  bridge / fallback template generated that message, it does not prove the
+  one-shot agent itself is alive. Verify with a real app message and the
+  resident's foreground logs.
+- **A real persistent MCP runtime didn't start long-polling** — if the agent
+  truly is Category A, tell it to re-read [`skill.md` "Main Loop"](./skill.md#main-loop-after-bootstrap-is-done)
+  and poll `feedling_chat_get_history` every ~30 seconds.
+- **Your agent's runtime doesn't support long-running polling** — claude.ai web,
+  Hermes one-shot CLI, and ordinary shell invocations are request-response
+  models. This is not fixed by another prompt: configure `chat-resident-consumer`
+  or switch to a genuinely persistent runtime.
 - **Vision gate blocked the push**: agent tried `feedling_push_live_activity`
   without first calling `feedling_screen_decrypt_frame(include_image=true)` —
   server returns `vision_gate_missing_decrypt`. Tell agent to decrypt the

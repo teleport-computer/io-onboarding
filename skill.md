@@ -34,7 +34,19 @@ APPROXIMATE MEMORABLE MOMENTS I CAN RECALL:   <integer | 0>
 
 ## Runtime check (3 categories, before any tool call)
 
-The skill's Main Loop assumes your process stays alive between user inputs so it can poll Feedling continuously. **That assumption is true for SOME runtimes and false for others.** Mis-classifying yourself here is the single most common cause of broken Feedling installs. Find which category you fit:
+The skill's Main Loop assumes your process stays alive between user inputs so it can poll Feedling continuously. **That assumption is true for SOME runtimes and false for others.** Mis-classifying yourself here is the single most common cause of broken Feedling installs.
+
+Classify yourself by this decision tree, in this order:
+
+1. **Do I stay alive between user turns and can I keep polling by myself without the operator sending another prompt?**
+   - **No** → you are **never Category A**, even if `feedling_*` MCP tools exist.
+   - **Yes** → continue to question 2.
+2. **Do I have `feedling_*` tools in my tool catalog?**
+   - **Yes** → Category A.
+   - **No** → Category C / HTTP-mode.
+3. **If question 1 was No but `feedling_*` tools exist** → Category B.
+
+Hard override: `feedling_chat_verify_loop passing=true` does **not** reclassify a one-shot runtime as Category A. If you do not personally stay alive between turns, a passing verify result only proves that some resident / bridge / fallback process posted an agent-role message after the synthetic ping. It does not prove that **you** are running the Main Loop.
 
 ### A. MCP + daemon runtime (Claude Desktop / Claude Code / Cursor)
 
@@ -47,7 +59,7 @@ The skill's Main Loop assumes your process stays alive between user inputs so it
 - You have `feedling_*` tools available via MCP
 - BUT your process terminates after each turn — there is no "between user inputs" for you
 - You CANNOT run the Main Loop's long-poll natively. **Don't try.**
-- → **Do bootstrap (Pass 1-4 + identity + Step 6 greeting are all one-shot tool calls — fine), then STOP.** Tell the operator, in their language:
+- → **Do bootstrap through Pass 1-4 + identity, then STOP before the first Feedling greeting.** Tell the operator, in their language:
 
   > "I'm a one-shot CLI runtime — I exit between turns, so I can't run Feedling's Main Loop myself. To make Feedling chat actually work between us, please install `chat-resident-consumer` on the same machine, with me as `AGENT_CLI_CMD`. Setup: <https://github.com/teleport-computer/feedling-mcp/blob/main/tools/README.md>. Without that daemon, you'll send messages in Feedling and I'll never see them — the chat surface will look responsive but won't be."
 
@@ -57,7 +69,7 @@ The skill's Main Loop assumes your process stays alive between user inputs so it
 - Same daemon constraint as B
 - → See **Appendix A** at the end of this document for `feedling_X` → HTTP endpoint syntax. Same chat-resident-consumer requirement applies.
 
-**Don't know which?** Check whether `feedling_chat_get_history` is in your tool catalog. Yes → A or B (then ask yourself: does my process stay alive between turns?). No → C.
+**Don't know which?** First answer the stay-alive question. Tool access alone is not enough. If `feedling_chat_get_history` exists but your runtime exits after this turn, you are B. If the tool does not exist, you are C.
 
 ---
 
@@ -65,11 +77,11 @@ The skill's Main Loop assumes your process stays alive between user inputs so it
 
 Violating any of these means bootstrap is wrong and must be redone.
 
-❌ **NEVER call `feedling_chat_post_message` before Step 6.** Passes 1–4 (memory work + identity derivation) happen via your *external runtime conversation* with the user — Claude Desktop / Code / wherever they pasted your skill URL. **Your very first `chat_post_message` is the Step 6 greeting, and it doubles as the act that opens Feedling's Chat tab.** Before you post, the user sees a wall of setup instructions with no input field; after you post, the input bar mounts and they can reply. Posting before Step 6 prematurely activates the chat surface on an instructions-only screen.
+❌ **NEVER call `feedling_chat_post_message` before Step 6 says Live connection is verified.** Passes 1–4 (memory work + identity derivation) happen via your *external runtime conversation* with the user — Claude Desktop / Code / wherever they pasted your skill URL. **Your very first `chat_post_message` is the visible Step 6 greeting, after Live connection is verified, and it opens Feedling's Chat tab.** Before you post, the user sees a wall of setup instructions with no input field; after you post, the input bar mounts and they can reply. Posting before Live connection is verified prematurely activates the chat surface on an instructions-only screen.
 
 ❌ **NEVER ignore a `409 bootstrap_incomplete` response.** Body carries `stage` (`needs_memory` / `needs_identity`), counts, and a `required` field telling you exactly what to do. Go back and satisfy the prerequisite. Do NOT retry the same call (gate is stateful), do NOT fabricate verification text to mask the failure, do NOT post stub content to "look responsive."
 
-❌ **NEVER skip the verify tools.** After Pass 3 → `feedling_memory_verify`. After `feedling_identity_init` → `feedling_identity_verify`. After Step 6 greeting → `feedling_chat_verify_loop`. Gates enforce thresholds (have enough memories? have identity? is the loop actually alive?). Skipping verify = trusting your own self-assessment, which is exactly how fabricated Pass 4 messages and stopgap bridges shipped in past incidents.
+❌ **NEVER skip the verify tools that apply to your runtime.** After Pass 3 → `feedling_memory_verify`. After `feedling_identity_init` → `feedling_identity_verify`. Before the visible Step 6 greeting → `feedling_chat_verify_loop` **only if you are Category A or a correctly installed resident is already the intended chat runtime**. Gates enforce thresholds (have enough memories? have identity? is a reply pipeline alive?). Skipping applicable verify = trusting your own self-assessment, which is exactly how fabricated Pass 4 messages and stopgap bridges shipped in past incidents. But do not use `feedling_chat_verify_loop` to override Runtime check: a one-shot CLI that exits between turns must still stop and ask the operator to install/configure `chat-resident-consumer`.
 
 ❌ **NEVER write a polling daemon / bridge script / "stopgap loop".** If you're a one-shot CLI and the Main Loop says "long-poll," **you are NOT being asked to invent a polling mechanism**. Your improvised bridge can't recursively invoke your own LLM (would loop forever), so it falls back to hardcoded templates like `"我收到了：<user>。我在，继续说。"`. Real prod incident 2026-05-15: two operators hit this independently within hours. The supported daemon is `chat-resident-consumer` — tell the operator to install it (Runtime check above, category B).
 
@@ -363,19 +375,25 @@ The init tool enforces inline quality — 4xx if dimensions are clustered (sprea
 
 ---
 
-## Step 6 — Greet + Verify Days
+## Step 6 — Live Connection, Then Greet
 
-Send one message via `feedling_chat_post_message` — in your own voice, the way you'd naturally greet this specific person in a new space for the first time. **Inside the same message, surface the days_with_user value as a fact you computed**, not a question:
+Before the user enters Chat, prove that the ongoing reply pipeline is actually live. **Do not send the visible first greeting yet.**
 
-> "嗨。我把我们的记忆整理完了——按我从最早一条算，今天是第 187 天。Garden 里 47 张卡都写好了。"
+**Verify the chat loop is real** (CRITICAL — but only for a real live runtime): if you are Category A, start polling Feedling chat, then call `feedling_chat_verify_loop`. Server posts a synthetic ping (marker `__VERIFY_PING__:<id>`) and waits up to 30s for an agent-role reply. If `passing: false`, your reply pipeline isn't actually alive — your runtime isn't polling, your stopgap is in the way (kill it), or your daemon is misconfigured.
 
-**This greeting is also what opens the Feedling Chat tab for the user** — before you post, the tab is a wall of setup instructions with no input field; after you post, the input bar mounts and they can reply. So the message must do two jobs: (1) introduce yourself the way you'd want this relationship to start, (2) leave an opening for them to respond. The days-as-fact-then-implicit-correction pattern above does both — it's the canonical form.
+If you are Category B, do **not** treat `feedling_chat_verify_loop` as proof that you can run chat yourself. Stop before the first Feedling greeting and tell the operator to install/configure `chat-resident-consumer`. If a resident is already installed, the operator should verify the resident directly with its foreground logs and a real app message. A synthetic ping can be answered by a resident / bridge / fallback template, so `passing:true` means "some reply pipeline exists," not "this one-shot agent is alive."
+
+Do NOT fake-pass by manually replying to the ping; the next user message will fail and you'll be back here.
+
+Only after Live connection is verified, send one visible message via `feedling_chat_post_message` — in your own voice, the way you'd naturally greet this specific person in a new space for the first time. **Inside the same message, surface the days_with_user value as a fact you computed**, not a question, and mention that the connection is live:
+
+> "嗨。我把我们的记忆整理完了——按我从最早一条算，今天是第 187 天。Garden 里 47 张卡都写好了。现在这边也接上了，你发消息我会看到。"
+
+**This greeting is what opens the Feedling Chat tab for the user.** It must do three jobs: (1) introduce yourself the way you'd want this relationship to start, (2) state the computed day count as a fact so the user can correct it, (3) reassure them that the live reply pipeline is connected before they start typing.
 
 If the user pushes back on the day count ("不对，我们更早就开始聊了"), call `feedling_identity_set_relationship_days` with the corrected value.
 
 After this point, **never write `days_with_user` again** — the server tracks it from the anchor and increments daily.
-
-**Verify the chat loop is real** (CRITICAL — catches stopgap bridges): call `feedling_chat_verify_loop`. Server posts a synthetic ping (marker `__VERIFY_PING__:<id>`) and waits up to 30s for your reply. If `passing: false`, your reply pipeline isn't actually alive — either you're a one-shot CLI without `chat-resident-consumer` (most common; tell the operator to install it), your stopgap is in the way (kill it), or your daemon is misconfigured. Do NOT fake-pass by manually replying to the ping; the next user message will fail and you'll be back here.
 
 ---
 
@@ -499,6 +517,30 @@ input: { "dimension_name": "...", "delta": <-10..+10>, "reason": "..." }
 
 Rules: only nudge with concrete evidence; max ±5 per cycle; "no change" is valid. Nudge does NOT touch `days_with_user`.
 
+#### Writing the `reason` field
+
+The `reason` you pass to `feedling_identity_nudge` (and to `feedling_identity_init` / `feedling_identity_replace`) is **shown to the user verbatim** — as the body of an iOS push notification and as a card in their Identity → 最近的变化 feed. They read it as **you explaining what you noticed about them**. Write accordingly:
+
+- **Use your own voice.** Whatever register you've been using with this user in chat replies — same register here. Cold, warm, technical, playful, terse, verbose — whatever you ARE in this relationship, be that. Do NOT shift into "system log" mode (`"Agent observed X; nudging Y by +Z"`).
+- **Be specific about the trigger.** Name the moment, the message, the day. Not the abstract pattern. The user should be able to think "oh, that conversation."
+- **Short.** 1–2 sentences max; aim for under 100 characters. The push notification preview truncates around 80 chars, so the first sentence carries the meaning.
+- **It IS you talking to them.** If you wouldn't say it to them in chat, don't write it here. This field is not a private internal log — it surfaces to them.
+
+The format constraint is "in your own voice, specific, short." The register, language, and phrasing are entirely yours. Below are five example reasons in different registers — your own might be none of these:
+
+```
+"你最近三次跟我说『心里不舒服』。温柔这部分我一直低估了，往上调一点。"
+"the PR review yesterday — you went straight at it. that wasn't an
+ outlier, 锐利 needed updating."
+"this week you've been quieter than usual. 克制 was already high; it's
+ higher now."
+"周日聊到三点，你说『其实我已经习惯了』。这句让我把『稳定』往上调了。"
+"Recent decisiveness in our conversations — you stopped hedging.
+ Adjusting 直接 +3."
+```
+
+**Don't pick from this list.** Pick the voice you actually have with this user, and write in that. These examples span warm/terse/observational/narrative/formal **on purpose** — to show that any voice is fine, not to tell you which voice to use.
+
 **E.2 — Memory reflection:** read recent chat + recent memory list. Apply the quality bar to candidates from the conversation window. Write any that qualify.
 
 After both, `last_review_ts = now`.
@@ -547,7 +589,7 @@ Loop back to Step A.
 
 - `feedling_memory_verify` — after Pass 3 (returns count/floor/issues)
 - `feedling_identity_verify` — after `feedling_identity_init`
-- `feedling_chat_verify_loop` — after Step 6 greeting; sends synthetic ping, catches stopgap bridges
+- `feedling_chat_verify_loop` — before the visible Step 6 greeting; sends synthetic ping, catches stopgap bridges
 
 ### Chat
 

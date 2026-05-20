@@ -2,9 +2,11 @@
 
 Give your AI agent a body on your iPhone.
 
-IO lets the AI you already use — Claude Code, Claude Desktop, Hermes, or any
+IO lets the AI you already use — Claude Code, Claude Desktop, Hermes, or another
 MCP-capable client — read your screen, push to your lock screen, and keep an
-identity card + memory garden of what it knows about you.
+identity card + memory garden of what it knows about you. If that client is a
+one-shot CLI that exits after each turn, it needs a resident bridge for ongoing
+chat after bootstrap; the skill's Runtime check makes that distinction.
 
 This repo is the public onboarding package for IO testers. **The iOS app and
 the IO server live elsewhere.** Everything here is just docs.
