@@ -21,7 +21,12 @@ the IO server live elsewhere.** Everything here is just docs.
 |------|----------|------|
 | **[quickstart.md](./quickstart.md)** | 5 步把 IO 装好、连上 agent | 你（测试者） |
 | **[troubleshooting.md](./troubleshooting.md)** | 卡住的时候的排错指南 | 你（测试者） |
-| **[skill.md](./skill.md)** | Agent 读的指令书。你不直接看这个，你只是把 URL 给你 agent | 你的 AI agent |
+| **[skill.md](./skill.md)** | 共同底座：记忆、身份、硬规则 | 你的 AI |
+| **[skill-claude.md](./skill-claude.md)** | Claude / Claude Code 路线 | 你的 AI |
+| **[skill-hermes.md](./skill-hermes.md)** | Hermes / OpenClaw / 本地 CLI 路线 | 你的 AI |
+| **[skill-server.md](./skill-server.md)** | 常驻服务器路线 | 你的 AI |
+| **[skill-api.md](./skill-api.md)** | 自定义 API 路线 | 你的 AI |
+| **[skill-guide.md](./skill-guide.md)** | 不确定时先辨认路线 | 你的 AI |
 
 ### 怎么开始
 
@@ -45,7 +50,12 @@ the IO server live elsewhere.** Everything here is just docs.
 |------|---------|----------|
 | **[quickstart.md](./quickstart.md)** | 5-step setup — install + connect your agent | You (the tester) |
 | **[troubleshooting.md](./troubleshooting.md)** | Common failure modes + fixes | You (the tester) |
-| **[skill.md](./skill.md)** | Instruction manual the agent reads. You don't read this directly — you give the URL to your agent | Your AI agent |
+| **[skill.md](./skill.md)** | Shared base: memory, identity, hard rules | Your AI |
+| **[skill-claude.md](./skill-claude.md)** | Claude / Claude Code path | Your AI |
+| **[skill-hermes.md](./skill-hermes.md)** | Hermes / OpenClaw / local CLI path | Your AI |
+| **[skill-server.md](./skill-server.md)** | Always-awake server path | Your AI |
+| **[skill-api.md](./skill-api.md)** | Custom API path | Your AI |
+| **[skill-guide.md](./skill-guide.md)** | Identify the right path when unsure | Your AI |
 
 ### Getting started
 
