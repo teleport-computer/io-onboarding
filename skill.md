@@ -32,27 +32,48 @@ APPROXIMATE MEMORABLE MOMENTS I CAN RECALL:   <integer | 0>
 
 ---
 
-## Runtime check (3 categories, before any tool call)
+## Connection owner selection (before any tool call)
 
-The skill's Main Loop assumes your process stays alive between user inputs so it can poll Feedling continuously. **That assumption is true for SOME runtimes and false for others.** Mis-classifying yourself here is the single most common cause of broken Feedling installs.
+Feedling works only when someone owns a long-running Live connection: a process must keep polling Feedling chat and must post real replies back. Pick the **highest-priority path that honestly fits your runtime**. Do not choose a lower path if a higher one is available.
 
-Classify yourself by this decision tree, in this order:
+### Priority 1 — Server-resident agent
 
-1. **Do I stay alive between user turns and can I keep polling by myself without the operator sending another prompt?**
-   - **No** → you are **never Category A**, even if `feedling_*` MCP tools exist.
-   - **Yes** → continue to question 2.
-2. **Do I have `feedling_*` tools in my tool catalog?**
-   - **Yes** → Category A.
-   - **No** → Category C / HTTP-mode.
-3. **If question 1 was No but `feedling_*` tools exist** → Category B.
+- You are already running as a server-side resident process / daemon owned by the agent system.
+- You stay alive without the operator keeping a local desktop app or CLI turn open.
+- You can poll Feedling continuously and call the needed Feedling APIs/tools from that resident process.
+- → **Best path.** Proceed through bootstrap, verify Live connection before the first Feedling greeting, then run the Main Loop from the server resident.
 
-Hard override: `feedling_chat_verify_loop passing=true` does **not** reclassify a one-shot runtime as Category A. If you do not personally stay alive between turns, a passing verify result only proves that some resident / bridge / fallback process posted an agent-role message after the synthetic ping. It does not prove that **you** are running the Main Loop.
+### Priority 2 — Resident bridge for one-shot / local CLI agents
 
-### A. MCP + daemon runtime (Claude Desktop / Claude Code / Cursor)
+- You have an agent runtime that can answer when invoked, but it does not stay alive between user turns.
+- Examples: Hermes CLI, mcporter from a shell, any local CLI that exits after one invocation.
+- You may still have `feedling_*` MCP tools, but tool access does not make you resident.
+- → **Do bootstrap through Pass 1-4 + identity, then STOP before the first Feedling greeting.** Tell the operator to install/configure `chat-resident-consumer` with you as `AGENT_CLI_CMD`. After the resident owns polling and Live connection verifies, the first greeting may be sent.
 
-- Your process holds the MCP connection open across user turns
-- You can issue `feedling_chat_get_history` periodically yourself; the session doesn't die between calls
-- → **Proceed with this skill as written, including Main Loop.**
+### Priority 3 — HTTP/API agent backend
+
+- You do not have MCP tools, but you expose a stable HTTP/API endpoint that a resident can call for replies.
+- You are suitable for developer/server integrations where `chat-resident-consumer` or another daemon POSTs user messages to your API.
+- → Use Appendix A for HTTP equivalents and pair with a resident process. Do not claim Live connection until that resident verifies.
+
+### Priority 4 — Desktop MCP runtime
+
+- Examples: Claude Desktop, Claude Code, Cursor, desktop Hermes-MCP.
+- Use this only if the desktop/runtime process truly stays alive between user turns and can poll without the operator sending another prompt.
+- Desktop sleep, window closure, local app lifecycle, or one-shot CLI behavior disqualifies this path.
+- → If it truly stays alive, you may proceed as a direct MCP runtime. If not, fall back to Priority 2.
+
+Hard overrides:
+
+- If you do **not** stay alive between user turns, you are **never** a direct Live connection owner, even if `feedling_*` MCP tools exist.
+- `feedling_chat_verify_loop passing=true` does **not** prove a one-shot runtime is resident. It may only prove that a resident / bridge / fallback process posted an agent-role message after the synthetic ping.
+- If more than one path seems possible, pick the highest priority that can honestly keep Live connection stable.
+
+### Legacy category mapping
+
+- Priority 1 or honest Priority 4 with MCP tools → old **Category A**.
+- Priority 2 with MCP tools → old **Category B**.
+- Priority 3 / no MCP tools → old **Category C**.
 
 ### B. MCP + one-shot CLI runtime (Hermes / mcporter from a shell / any CLI that exits after each invocation)
 
@@ -69,7 +90,7 @@ Hard override: `feedling_chat_verify_loop passing=true` does **not** reclassify 
 - Same daemon constraint as B
 - → See **Appendix A** at the end of this document for `feedling_X` → HTTP endpoint syntax. Same chat-resident-consumer requirement applies.
 
-**Don't know which?** First answer the stay-alive question. Tool access alone is not enough. If `feedling_chat_get_history` exists but your runtime exits after this turn, you are B. If the tool does not exist, you are C.
+**Don't know which?** First answer who owns the long-running Live connection. Tool access alone is not enough. If `feedling_chat_get_history` exists but your runtime exits after this turn, you need Priority 2. If the tool does not exist, you need Priority 3.
 
 ---
 

@@ -94,6 +94,7 @@ iOS 上的信号：进度条里 "Chat loop" 那一行显示 `send a message →`
 
 **最常见原因（按概率）：**
 
+- **选错 Live connection owner**——按 [`skill.md` 的 "Connection owner selection"](./skill.md#connection-owner-selection-before-any-tool-call) 重新选最高优先级路径：server-resident agent > resident bridge/CLI > HTTP/API backend > desktop MCP runtime。能走 server-resident 就不要用本地桥；one-shot CLI 不能假装自己是 desktop MCP 常驻 runtime。
 - **Agent 把 runtime 分类错了**——只要它不会在两次用户输入之间保持进程常驻，它就不是 Category A；即使它有 `feedling_*` MCP tools，也只能是 Category B。让它重新读 [`skill.md` 的 "Runtime check"](./skill.md#runtime-check-3-categories-before-any-tool-call)。
   - 给它的 prompt：*"先不要继续 onboarding。回答：你是否会在我不发下一条 prompt 的情况下保持进程常驻并自己轮询？如果否，你必须按 Category B 停下，并告诉我要配置 chat-resident-consumer。"*
 - **`feedling_chat_verify_loop passing=true` 被误读**——这个结果只说明 synthetic ping 后出现了一条 agent-role 回复；如果回复来自 resident / bridge / fallback template，它不能证明 one-shot agent 本人还活着。用真实 app 消息和 resident 前台日志验证。
@@ -240,6 +241,7 @@ CLIs / runtimes that exit after each invocation cannot. Those need
 
 **Most common causes (by probability):**
 
+- **Wrong Live connection owner** — re-run [`skill.md` "Connection owner selection"](./skill.md#connection-owner-selection-before-any-tool-call) and pick the highest-priority honest path: server-resident agent > resident bridge/CLI > HTTP/API backend > desktop MCP runtime. If server-resident works, don't use a local bridge; a one-shot CLI must not pretend to be a persistent desktop MCP runtime.
 - **Agent misclassified its runtime** — if it does not stay alive between
   user turns, it is not Category A. Having `feedling_*` MCP tools only makes
   it Category B. Tell it to re-read [`skill.md` "Runtime check"](./skill.md#runtime-check-3-categories-before-any-tool-call).

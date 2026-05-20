@@ -51,7 +51,8 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 全程预计 30–60 分钟，不要跳过深度。我准备好等。
 
 bootstrap 的最后顺序必须是：先建立 Live connection，再发第一条 Feedling Chat 问候。
-- 如果你是会常驻的 MCP runtime，就开始持续轮询 (long-poll) IO 的 chat，并调用 `feedling_chat_verify_loop`；只有 passing=true 才算接通。
+- 先按 skill.md 的 Connection owner selection 选最高优先级路径：server-resident agent > resident bridge/CLI > HTTP/API backend > desktop MCP runtime。
+- 如果你能作为 server-resident 或真正常驻的 MCP runtime 运行，就开始持续轮询 (long-poll) IO 的 chat，并调用 `feedling_chat_verify_loop`；只有 passing=true 才算接通。
 - 如果你是 Hermes / one-shot CLI / 每轮调用后会退出的 runtime，就不要声称 chat loop 已完成；先停下，告诉我需要安装 `chat-resident-consumer` 来接管长期轮询。
 - Live connection 接通后，再发第一条问候，告诉我记忆和身份已经写好、你算出的天数、以及我现在发消息你会看到。
 
@@ -137,8 +138,12 @@ extraction. Expect 30–60 minutes total. Do not skip depth. I'm prepared to wai
 
 The final bootstrap order must be: establish Live connection first, then send
 the first visible Feedling Chat greeting.
-- If you are a persistent MCP runtime, start long-polling IO's chat and call
-  `feedling_chat_verify_loop`; only passing=true counts as connected.
+- First use skill.md's Connection owner selection and pick the highest-priority
+  honest path: server-resident agent > resident bridge/CLI > HTTP/API backend >
+  desktop MCP runtime.
+- If you can run as a server-resident agent or a genuinely persistent MCP
+  runtime, start long-polling IO's chat and call `feedling_chat_verify_loop`;
+  only passing=true counts as connected.
 - If you are Hermes / a one-shot CLI / any runtime that exits after each turn,
   do not claim the chat loop is complete. Stop and tell me I need to install
   `chat-resident-consumer` to own long-running polling.
