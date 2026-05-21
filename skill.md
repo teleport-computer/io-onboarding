@@ -68,6 +68,7 @@ Hard overrides:
 
 - If you do **not** stay alive between user turns, you are **never** a direct Live connection owner, even if `feedling_*` MCP tools exist.
 - If you are Hermes/OpenClaw, first look for the resident gateway/channel registry. Do **not** assume "Hermes" means "Hermes CLI".
+- If you are a resident gateway, `service active` and `api key present` are not enough. You must verify that the native Feedling/IO adapter is enabled, polling `https://api.feedling.app/v1/chat/poll`, and registered in every platform/toolset/routing map the gateway needs.
 - `feedling_chat_verify_loop passing=true` does **not** prove a one-shot runtime is resident. It may only prove that a resident / bridge / fallback process posted an agent-role message after the synthetic ping.
 - If more than one path seems possible, pick the highest priority that can honestly keep Live connection stable.
 
@@ -102,6 +103,10 @@ Violating any of these means bootstrap is wrong and must be redone.
 ❌ **NEVER skip the verify tools that apply to your runtime.** After Pass 3 → `feedling_memory_verify`. After `feedling_identity_init` → `feedling_identity_verify`. Before the visible Step 6 greeting → `feedling_chat_verify_loop` **only if Priority 1 / Priority 2 can honestly own the ongoing reply path, or a correctly installed resident is already the intended chat runtime**. Gates enforce thresholds (have enough memories? have identity? is a reply pipeline alive?). Skipping applicable verify = trusting your own self-assessment, which is exactly how fabricated Pass 4 messages and stopgap bridges shipped in past incidents. But do not use `feedling_chat_verify_loop` to override Connection owner selection: a literal one-shot command that exits between turns must still stop and ask the operator to install/configure `chat-resident-consumer`.
 
 ❌ **NEVER write a polling daemon / bridge script / "stopgap loop".** If you're a literal one-shot command and the Main Loop says "long-poll," **you are NOT being asked to invent a polling mechanism**. Your improvised bridge can't recursively invoke your own LLM (would loop forever), so it falls back to hardcoded templates like `"我收到了：<user>。我在，继续说。"`. Real prod incident 2026-05-15: two operators hit this independently within hours. The supported fallback daemon is `chat-resident-consumer` — use it only when no resident gateway/channel can own Feedling directly.
+
+❌ **NEVER expose gateway setup inside IO Chat.** Do not send `/sethome` prompts, "No home channel is set", routing/config/deployment status, `KeyError`, traceback fallback text, debug logs, or internal reasoning into `feedling_chat_post_message` / `/v1/chat/response`. IO Chat is the relationship surface, not a gateway console. If the gateway has a home-channel concept, Feedling must be registered/silenced at the adapter layer before Step 6.
+
+❌ **NEVER use `https://mcp.feedling.app` as the chat poll API.** `/v1/chat/poll` and `/v1/chat/response` belong to the backend API host: `https://api.feedling.app`. `mcp.feedling.app` is the MCP SSE surface.
 
 ❌ **NEVER use a runtime label as `agent_name`.** `Hermes` / `Claude` / `Claude Code` / `ChatGPT` / `GPT-4` / `Gemini` are runtime identifiers — they are not names. If you've never been given a name in prior conversations with this user, propose one and let them accept or reject. The default is **never** your runtime's label.
 
@@ -399,6 +404,15 @@ Before the user enters Chat, prove that the ongoing reply pipeline is actually l
 
 **Verify the chat loop is real** (CRITICAL — but only for a real live runtime): if you are Priority 1 or an honest Priority 2, start polling Feedling chat from the process that will keep owning replies, then call `feedling_chat_verify_loop`. Server posts a synthetic ping (marker `__VERIFY_PING__:<id>`) and waits up to 30s for an agent-role reply. If `passing: false`, your reply pipeline isn't actually alive — your resident gateway/channel is not polling, your stopgap is in the way (kill it), or your daemon is misconfigured.
 
+For resident gateways, confirm the adapter is really started before calling the verify tool. Required evidence:
+
+- Feedling/IO channel enabled in runtime config.
+- Startup logs show the adapter connecting.
+- Startup logs show polling started with `api_url=https://api.feedling.app`.
+- Logs show fresh `https://api.feedling.app/v1/chat/poll` requests.
+- Platform/toolset/routing registries know `feedling`; no `KeyError: 'feedling'`.
+- Gateway output filters prevent `/sethome`, debug, traceback, and internal reasoning from reaching IO Chat.
+
 If you are Priority 4, do **not** treat `feedling_chat_verify_loop` as proof that you can run chat yourself. Stop before the first Feedling greeting and tell the operator to install/configure `chat-resident-consumer`. If a resident is already installed, the operator should verify the resident directly with its foreground logs and a real app message. A synthetic ping can be answered by a resident / bridge / fallback template, so `passing:true` means "some reply pipeline exists," not "this one-shot command is alive."
 
 Do NOT fake-pass by manually replying to the ping; the next user message will fail and you'll be back here.
@@ -408,6 +422,8 @@ Only after Live connection is verified, send one visible message via `feedling_c
 > "嗨。我把我们的记忆整理完了——按我从最早一条算，今天是第 187 天。Garden 里 47 张卡都写好了。现在这边也接上了，你发消息我会看到。"
 
 **This greeting is what opens the Feedling Chat tab for the user.** It must do three jobs: (1) introduce yourself the way you'd want this relationship to start, (2) state the computed day count as a fact so the user can correct it, (3) reassure them that the live reply pipeline is connected before they start typing.
+
+After the greeting, ask the user to send one normal IO Chat message. On your side, verify that the resident adapter receives it, runs the normal agent conversation path, and sends one natural reply. Onboarding is not complete if the reply contains gateway setup text, `/sethome`, traceback/debug output, or internal reasoning.
 
 If the user pushes back on the day count ("不对，我们更早就开始聊了"), call `feedling_identity_set_relationship_days` with the corrected value.
 
