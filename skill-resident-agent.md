@@ -26,50 +26,31 @@ For Hermes / OpenClaw / any gateway that already hosts Telegram, WeChat, Feishu,
 
 中文同义规则：如果你是 Hermes / OpenClaw / 已经承载 Telegram、WeChat、Feishu 等常驻渠道的 gateway，IO/Feedling 必须作为原生常驻 channel 接入。不要让用户在 IO Chat 里修路由、发命令或参与调试。
 
-Before Step 6, verify all of this from the gateway side:
+Self-restart boundary: you may configure or restart an **external** Feedling connector / gateway that is not carrying this conversation. You must not silently restart the resident gateway process that is carrying this current conversation. If the required next action is `systemctl restart` / service restart of your own Hermes/OpenClaw gateway, write the config, tell the user/operator that the restart must happen outside this turn, then stop before Step 6. After restart, wait for the user to send a fresh ordinary message and resume with readiness verification.
 
-- The platform registry includes `feedling`.
-- The adapter factory can create `FeedlingAdapter`.
-- The adapter implements every abstract / required method from the gateway base adapter contract before the service starts. For Hermes/OpenClaw, `get_chat_info(chat_id)` is required.
-- The gateway's toolset / platform routing registry includes `feedling` so no `KeyError: 'feedling'` can happen after the first message.
-  - For Hermes/OpenClaw, parity means `Platform.FEEDLING`, `_create_adapter(... feedling ...)`, `hermes_cli.tools_config.PLATFORMS["feedling"]`, and a `hermes-feedling` toolset included by the gateway.
-- Runtime config enables the channel, e.g. `FEEDLING_ENABLED=true`.
-- No systemd drop-in or config layer force-disables the channel. Check for files like `*disable*feedling*.conf` or overrides setting `FEEDLING_ENABLED=false`.
-- `FEEDLING_API_URL` points to the backend API: `https://api.feedling.app`.
-  - Do **not** use `https://mcp.feedling.app` for `/v1/chat/poll`; that host is the MCP SSE surface.
-- `FEEDLING_API_KEY` is the current onboarding key.
-- If the gateway has a sender allowlist, the current Feedling `user_id` is allowed, e.g. `FEEDLING_ALLOWED_USERS=<feedling_user_id>`, or the gateway has an intentional allow-all policy. An unauthorized-user warning means the chat loop is not ready.
-- Startup logs prove the adapter is alive:
-  - `Feedling adapter connecting`
-  - `Feedling polling started api_url=https://api.feedling.app ...`
-  - `Feedling polling request url=https://api.feedling.app/v1/chat/poll`
-- Incoming Feedling messages go through the gateway's normal resident brain path, not a CLI subprocess.
-  - For Hermes/OpenClaw this means the same path used by other resident channels, e.g. gateway message handler → `AIAgent.run_conversation` → adapter send.
-- Replies are posted to `/v1/chat/response`.
+自我重启边界：你可以配置或重启一个不承载当前对话的外部 Feedling connector / gateway；但不能在当前 turn 里静默重启正在承载你自己的 Hermes/OpenClaw resident gateway。如果下一步必须 `systemctl restart` / 重启你自己的 gateway，就先写好配置，告诉用户/维护者这一步必须在当前 turn 外执行，然后停在 Step 6 之前。重启后，等用户发一条新的普通消息，再继续做 readiness verification。
 
-If any item is missing, stop onboarding before Step 6 and report the missing gateway capability in the external runtime. Do not open IO Chat with a partial connection.
+Before Step 6, use the normal connector path and verify only the outcome:
 
-Do not make the user fix gateway readiness from IO Chat. No `/reset`, no `/sethome`, no "send a new test message while I patch this" loop. Fix the resident gateway first; then use exactly one normal user message as the final real-chat proof.
+1. Feedling/IO channel is configured with the current key.
+2. The resident process is polling Feedling.
+3. `feedling_chat_verify_loop` returns `passing=true`.
+4. One ordinary user message in IO Chat reaches you and gets one natural reply.
 
-中文验收清单：
+中文验收只看结果：
 
-- `feedling` 已进入平台 registry。
-- adapter factory 能创建 `FeedlingAdapter`。
-- adapter 已实现 gateway base adapter 的所有必需方法；Hermes/OpenClaw 至少包括 `get_chat_info(chat_id)`。
-- toolset / platform routing registry 已包含 `feedling`，不会在第一条消息后出现 `KeyError: 'feedling'`。
-- 运行配置明确启用 Feedling：`FEEDLING_ENABLED=true`。
-- 没有 systemd drop-in / 配置层把它强制关掉，例如 `FEEDLING_ENABLED=false` 或 `*disable*feedling*.conf`。
-- `FEEDLING_API_URL=https://api.feedling.app`；不要用 `https://mcp.feedling.app` 去请求 `/v1/chat/poll`。
-- `FEEDLING_API_KEY` 是当前 onboarding key。
-- 如果 gateway 有 sender allowlist，当前 Feedling `user_id` 已允许，例如 `FEEDLING_ALLOWED_USERS=<feedling_user_id>`；看到 `Unauthorized user ... on feedling` 就不算 ready。
-- 启动日志能看到：
-  - `Feedling adapter connecting`
-  - `Feedling polling started api_url=https://api.feedling.app ...`
-  - `Feedling polling request url=https://api.feedling.app/v1/chat/poll`
-- Feedling 用户消息走 gateway 原生 brain 路径，不走 CLI subprocess。Hermes/OpenClaw 应走现有 resident channel 同一条链路：gateway message handler → `AIAgent.run_conversation` → adapter send。
-- 回复通过 `/v1/chat/response` 发回。
+1. Feedling/IO channel 已经用当前 key 配好。
+2. 常驻进程正在轮询 Feedling。
+3. `feedling_chat_verify_loop` 返回 `passing=true`。
+4. 用户在 IO Chat 发一条普通消息后，你能自然回复一次。
 
-缺任何一项，都在外部 runtime 停下并报告缺的 gateway 能力；不要打开 IO Chat 的半成品连接。不要让用户在 IO Chat 里发 `/reset`、`/sethome` 或“再发一条测试消息”。先修 gateway，再只用一条普通用户消息做最终真实聊天验收。
+Do not proactively inspect or repair adapter internals during normal onboarding. If one of the checks fails, stop before Step 6, report the concrete failure in the external runtime, and then read `troubleshooting.md`.
+
+正常 onboarding 时不要主动检查或修 adapter 内部实现。只有上面的验收失败时，才停在 Step 6 前，在外部 runtime 报告具体失败点，然后再看 `troubleshooting.md`。
+
+Do not make the user fix gateway readiness from IO Chat. No `/reset`, no `/sethome`, no "send a new test message while I patch this" loop. Fix connector setup outside IO Chat; then use exactly one normal user message as the final real-chat proof.
+
+不要让用户在 IO Chat 里修连接。不要要求 `/reset`、`/sethome`，也不要说“我修一下你再发一条测试消息”。连接修复必须发生在 IO Chat 外；最后只用一条普通用户消息做真实聊天验收。
 
 ## User-visible chat rules
 

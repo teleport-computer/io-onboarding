@@ -41,8 +41,8 @@ Feedling works only when someone owns a long-running Live connection: a process 
 - You are already running as a resident process / daemon owned by the agent system.
 - Examples: Hermes / OpenClaw gateway, a Telegram/WeChat/Feishu-style bot host, Claude Code on a Mac mini, or any agent process that stays awake on the user's machine/server.
 - You stay alive without the operator keeping a local CLI turn open.
-- You can add or enable a Feedling/IO channel in that same resident process, then poll Feedling continuously and post replies back.
-- → **Best path.** Proceed through bootstrap, enable the native Feedling/IO channel in the resident gateway, verify Live connection before the first Feedling greeting, then run the Main Loop from the same resident identity.
+- You can connect Feedling/IO as another resident channel, then poll Feedling continuously and post replies back.
+- → **Best path.** Connect Feedling, verify Live connection before the first Feedling greeting, then run the Main Loop from the same resident identity.
 
 ### Priority 2 — Chat-product MCP client
 
@@ -68,7 +68,8 @@ Hard overrides:
 
 - If you do **not** stay alive between user turns, you are **never** a direct Live connection owner, even if `feedling_*` MCP tools exist.
 - If you are Hermes/OpenClaw, first look for the resident gateway/channel registry. Do **not** assume "Hermes" means "Hermes CLI".
-- If you are a resident gateway, `service active` and `api key present` are not enough. You must verify that the native Feedling/IO adapter satisfies the base adapter contract, is enabled, is not force-disabled by a config override, is authorized for the current Feedling user, is polling `https://api.feedling.app/v1/chat/poll`, and is registered in every platform/toolset/routing map the gateway needs.
+- If you are a resident gateway, do not turn onboarding into infrastructure repair. Use the normal Feedling connector path. If the connector is missing or broken, stop and report that setup is needed; use troubleshooting only after a concrete failure.
+- If enabling Feedling requires a service restart, first decide whether that restart would kill the process currently carrying this conversation. Restarting an external service you do not inhabit is allowed. Restarting your own resident gateway in-band is not allowed: write the config, tell the user/operator that the resident gateway must be restarted outside this turn, then stop before Step 6. After the user sends a new message post-restart, verify the live connection.
 - `feedling_chat_verify_loop passing=true` does **not** prove a one-shot runtime is resident. It may only prove that a resident / bridge / fallback process posted an agent-role message after the synthetic ping.
 - If more than one path seems possible, pick the highest priority that can honestly keep Live connection stable.
 
@@ -88,7 +89,7 @@ Hard overrides:
 - Same daemon constraint as B
 - → See **Appendix A** at the end of this document for `feedling_X` → HTTP endpoint syntax. Same chat-resident-consumer requirement applies.
 
-**Don't know which?** First answer who owns the long-running Live connection. Tool access alone is not enough. If this is Hermes/OpenClaw, inspect the resident gateway/channel registry first; a missing Feedling channel means "enable or implement the Feedling adapter", not "fall back to one-shot CLI". If `feedling_chat_get_history` exists but your runtime exits after this turn and no resident gateway exists, you need Priority 4. If the tool does not exist, you need Priority 3.
+**Don't know which?** First answer who owns the long-running Live connection. Tool access alone is not enough. If this is Hermes/OpenClaw, use the resident Feedling connector path if it exists; if it does not exist, stop and say connector setup is needed. Do not improvise a bridge. If `feedling_chat_get_history` exists but your runtime exits after this turn and no resident gateway exists, you need Priority 4. If the tool does not exist, you need Priority 3.
 
 ---
 
@@ -404,29 +405,18 @@ Before the user enters Chat, prove that the ongoing reply pipeline is actually l
 
 **Verify the chat loop is real** (CRITICAL — but only for a real live runtime): if you are Priority 1 or an honest Priority 2, start polling Feedling chat from the process that will keep owning replies, then call `feedling_chat_verify_loop`. Server posts a synthetic ping (marker `__VERIFY_PING__:<id>`) and waits up to 30s for an agent-role reply. If `passing: false`, your reply pipeline isn't actually alive — your resident gateway/channel is not polling, your stopgap is in the way (kill it), or your daemon is misconfigured.
 
-For resident gateways, confirm the adapter is really started before calling the verify tool. Required evidence:
+For resident gateways, keep this step simple. A working connector means:
 
-- Adapter class instantiates cleanly and implements required base methods.
-- Feedling/IO channel enabled in runtime config.
-- No active override sets `FEEDLING_ENABLED=false`.
-- If the gateway has sender authorization, the current Feedling `user_id` is allowlisted or intentionally allowed.
-- Startup logs show the adapter connecting.
-- Startup logs show polling started with `api_url=https://api.feedling.app`.
-- Logs show fresh `https://api.feedling.app/v1/chat/poll` requests.
-- Platform/toolset/routing registries know `feedling`; no `KeyError: 'feedling'`.
-- Gateway output filters prevent `/sethome`, debug, traceback, and internal reasoning from reaching IO Chat.
+- the resident process is running;
+- the Feedling channel is connected with the current key;
+- `feedling_chat_verify_loop` returns `passing=true`;
+- one ordinary user message in IO Chat reaches you and gets one natural reply.
 
-中文同义验收：
+中文同义标准：常驻 gateway 的连接验收只看四件事：进程在运行；Feedling channel 已用当前 key 接上；`feedling_chat_verify_loop` 返回 `passing=true`；用户在 IO Chat 发一条普通消息后，你能自然回复一次。
 
-- adapter class 能正常实例化，并实现 gateway base adapter 的所有必需方法。
-- 运行配置已启用 Feedling/IO channel。
-- 没有任何生效 override 把 `FEEDLING_ENABLED=false` 写回去。
-- 如果 gateway 有 sender authorization，当前 Feedling `user_id` 已经被允许，或明确采用 allow-all policy。
-- 启动日志能看到 adapter connecting。
-- 启动日志能看到 polling started，且 `api_url=https://api.feedling.app`。
-- 日志里有新的 `https://api.feedling.app/v1/chat/poll` 请求。
-- platform / toolset / routing registry 都认识 `feedling`，不会出现 `KeyError: 'feedling'`。
-- gateway 输出过滤已经保证 `/sethome`、debug、traceback、internal reasoning 不会进入 IO Chat。
+Do not inspect or rewrite gateway internals unless one of those checks fails. If a check fails, stop onboarding, report the concrete failure in the external runtime, and then use `troubleshooting.md`. Do not continue into the memory/identity/greeting flow while doing infrastructure repair.
+
+中文：除非上面验收失败，不要主动检查或重写 gateway 内部实现。失败时，停下 onboarding，在外部 runtime 报告具体失败点，再看 `troubleshooting.md`。不要一边修基础设施一边继续写 memory / identity / first greeting。
 
 If you are Priority 4, do **not** treat `feedling_chat_verify_loop` as proof that you can run chat yourself. Stop before the first Feedling greeting and tell the operator to install/configure `chat-resident-consumer`. If a resident is already installed, the operator should verify the resident directly with its foreground logs and a real app message. A synthetic ping can be answered by a resident / bridge / fallback template, so `passing:true` means "some reply pipeline exists," not "this one-shot command is alive."
 

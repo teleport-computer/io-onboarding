@@ -17,3 +17,13 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 - If the chat product cannot keep listening after the user closes the window, sleeps the computer, or ends the session, say that clearly before the first greeting. It may still be able to initialize memory and identity, but it is not a reliable live IO chat owner.
 
 Do not invent a polling bridge. If live chat cannot be owned from this client, the user needs a resident agent running on their own machine/server.
+
+## 中文同义规则
+
+- 按 base skill 完成 Step 0、四轮记忆 pass、identity。
+- 不要默认假设聊天产品能在后台一直活着。
+- 只有在你能真实持续接收 IO/Feedling 消息时，才可以成为 Live connection owner。
+- 第一条 IO 问候前必须用 `feedling_chat_verify_loop` 验证；只有 `passing=true` 才能发。
+- 如果这个聊天产品在用户关窗口、电脑睡眠、session 结束后就不能继续听消息，要在第一条 IO 问候前说清楚：你可以初始化 memory / identity，但不能可靠负责长期聊天。
+
+不要自己发明 polling bridge。不能从这个 client 持续接住 live chat 时，用户需要在自己的机器 / server 上运行一个 resident agent。
