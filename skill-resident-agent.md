@@ -13,6 +13,7 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 - The user gives you resident consumer config: `FEEDLING_API_URL`, `FEEDLING_API_KEY`, and optionally `FEEDLING_MCP_URL` / `FEEDLING_MCP_KEY`. `FEEDLING_MCP_URL` is the MCP base URL, not a `claude mcp add ...` command.
 - Configure an independent `feedling-chat-resident` / IO resident consumer service with that config.
 - Fill in the agent entry from your own runtime, then point the consumer at it through HTTP or CLI. Use HTTP only when you expose a real resident endpoint that reaches your actual agent session. Otherwise use CLI. For Hermes/OpenClaw with no HTTP endpoint, the default CLI candidate is `hermes chat -Q --max-turns 1 -q "{message}"`; the consumer stores the first `session_id` and resumes later turns with `--resume`. Use an absolute executable path if the service environment cannot find `hermes`.
+- Install the consumer as a service owned by the OS service manager (`systemd --user`, launchd, supervisor, pm2, etc.). The consumer may call Hermes/OpenClaw, but its process must be supervised independently from the current Hermes/OpenClaw conversation or top-level gateway. If you are currently inside Hermes/OpenClaw, write the env + service file, start/restart only `feedling-chat-resident`, then verify it from logs.
 - Complete Step 0, the four memory passes, and identity exactly as the base skill requires.
 - Keep the consumer service alive. It owns the ongoing IO chat loop by polling Feedling and calling your agent entry for each user message.
 - Verify the live reply path with `feedling_chat_verify_loop`.
@@ -33,6 +34,7 @@ feedling-chat-resident
 - 用户给你的连接信息是 resident consumer config：`FEEDLING_API_URL`、`FEEDLING_API_KEY`，以及可选的 `FEEDLING_MCP_URL` / `FEEDLING_MCP_KEY`。`FEEDLING_MCP_URL` 是 MCP base URL，不是 `claude mcp add ...` 命令。
 - 用这些信息配置一个独立的 `feedling-chat-resident` / IO resident consumer service。
 - agent 入口由你根据自己的 runtime 填出来，不应该要求用户提供。有真实 resident HTTP endpoint 才用 HTTP；否则用 CLI。Hermes/OpenClaw 没有 HTTP endpoint 时，默认 CLI 候选是 `hermes chat -Q --max-turns 1 -q "{message}"`；consumer 会保存第一次返回的 `session_id`，后续用 `--resume` 续接。service 环境找不到 `hermes` 时改用绝对路径。
+- consumer 要作为 OS service manager 管理的独立服务运行（`systemd --user` / launchd / supervisor / pm2 等）。consumer 可以调用 Hermes/OpenClaw，但它自己的进程不属于当前 Hermes/OpenClaw 对话，也不挂在顶层 gateway 下面。如果你此刻就在 Hermes/OpenClaw 里操作，只写 env + service file，并只启动/重启 `feedling-chat-resident`，然后从日志验证。
 - 这个 consumer service 负责持续轮询 Feedling、把用户消息交给你、再把你的回复写回 Feedling。
 
 ## Resident consumer readiness

@@ -47,6 +47,7 @@ Use the path that honestly fits your runtime:
   - For Hermes' API server, use OpenAI-compatible mode: `AGENT_MODE=http`, `AGENT_HTTP_PROTOCOL=openai`, `AGENT_HTTP_URL=http://127.0.0.1:<port>/v1/chat/completions`. The consumer preserves `X-Hermes-Session-Id` / `X-Hermes-Session-Key`.
   - CLI if your runtime is called by command: `AGENT_MODE=cli` + `AGENT_CLI_CMD=<command that accepts {message}>`.
   - Hermes/OpenClaw default candidate when no HTTP endpoint exists: `AGENT_MODE=cli` + `AGENT_CLI_CMD=hermes chat -Q --max-turns 1 -q "{message}"`. The consumer stores the first `session_id` and resumes later turns with `--resume`. If service env cannot find `hermes`, resolve it with `which hermes` / your venv path and use an absolute executable path.
+- Run the consumer as an independently supervised service (`systemd --user`, launchd, supervisor, pm2, etc.). The consumer may call Hermes/OpenClaw, but it is not owned by the current Hermes/OpenClaw chat turn and is not a child job of the top-level gateway. On a VPS with Hermes gateway already running, install/start only the `feedling-chat-resident` service for IO.
 - The consumer owns the ongoing reply loop:
   - `GET FEEDLING_API_URL/v1/chat/poll`
   - call your agent entry

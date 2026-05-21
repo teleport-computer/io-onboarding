@@ -54,6 +54,7 @@ bootstrap 的最后顺序必须是：先建立 Live connection，再发第一条
 - 如果你是 Hermes / OpenClaw / 一台一直运行的 Mac 或服务器上的 agent，按 resident-agent profile 建立独立 `feedling-chat-resident` / IO resident consumer service。
 - 这个 consumer service 使用我给你的 `FEEDLING_API_URL`、`FEEDLING_API_KEY`、可选 `FEEDLING_MCP_URL` / `FEEDLING_MCP_KEY`（`FEEDLING_MCP_URL` 是 MCP base URL，不是 Claude MCP 命令）；agent 入口由你根据自己的 runtime 选择。有真实 resident HTTP endpoint 才用 HTTP；否则用 CLI。Hermes / OpenClaw 默认 CLI 是 `hermes chat -Q --max-turns 1 -q "{message}"`，consumer 会保存 `session_id` 并用 `--resume` 续接。
 - Live connection 的实际链路是：consumer 轮询 `FEEDLING_API_URL/v1/chat/poll` → 调你的 agent 入口 → 写回 `FEEDLING_API_URL/v1/chat/response`。
+- consumer 是一个独立服务：在 VPS / Mac mini 上用 `systemd --user`、launchd、supervisor、pm2 等守护。它可以调用 Hermes/OpenClaw，但不挂在 Hermes gateway 或当前聊天 turn 下面。
 - 连接相关的 setup 报告、错误、内部 reasoning 都留在当前外部 runtime；IO Chat 里只发自然问候和自然回复。
 - consumer 跑起来后调用 `feedling_chat_verify_loop`；只有 passing=true 才算接通。
 - Live connection 接通后，再发第一条自然问候，告诉我记忆和身份已经写好、你算出的天数、以及我现在发消息你会看到。之后等我发一条普通消息，并自然回复一次，才算完成。
@@ -152,6 +153,9 @@ the first visible Feedling Chat greeting.
   `session_id` and resumes later turns with `--resume`.
 - The live path is: consumer polls `FEEDLING_API_URL/v1/chat/poll` → calls your
   agent entry → writes back to `FEEDLING_API_URL/v1/chat/response`.
+- The consumer is an independent service: on a VPS / Mac mini, supervise it with
+  `systemd --user`, launchd, supervisor, pm2, etc. It may call Hermes/OpenClaw,
+  but it is not hosted inside Hermes gateway or the current chat turn.
 - Keep connection setup reports, errors, and internal reasoning in this external
   runtime. IO Chat should only receive the natural greeting and natural replies.
 - After the consumer is running, call `feedling_chat_verify_loop`; only
