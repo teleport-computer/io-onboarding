@@ -55,6 +55,7 @@ bootstrap 的最后顺序必须是：先建立 Live connection，再发第一条
 - 如果你是 Hermes / OpenClaw / 一台一直运行的 Mac 或服务器上的常驻 agent，优先在同一个 resident gateway 里启用 Feedling/IO channel；不要默认降级成 `hermes chat ...` CLI。
 - 由真正常驻的进程开始持续轮询 (long-poll) IO 的 chat；确认日志里是 `https://api.feedling.app/v1/chat/poll`，不是 `mcp.feedling.app`。
 - 不要把 `/sethome`、gateway 配置提示、KeyError/traceback、internal reasoning 发进 IO Chat。
+- 不要让我在 IO Chat 里发 `/reset` / `/sethome` 来修连接；如果 gateway 配置没好，先在外部 runtime 停下并修配置。
 - 调用 `feedling_chat_verify_loop`；只有 passing=true 才算接通。
 - 只有当你确认自己真的只是每轮调用后会退出的命令、且没有 resident gateway/channel 可用时，才停下，告诉我需要安装 `chat-resident-consumer` 来接管长期轮询。
 - Live connection 接通后，再发第一条自然问候，告诉我记忆和身份已经写好、你算出的天数、以及我现在发消息你会看到。之后等我发一条普通消息，并自然回复一次，才算完成。
@@ -151,6 +152,9 @@ the first visible Feedling Chat greeting.
   `https://api.feedling.app/v1/chat/poll`, not `mcp.feedling.app`.
 - Do not send `/sethome`, gateway config prompts, KeyError/traceback, or
   internal reasoning into IO Chat.
+- Do not ask me to send `/reset` / `/sethome` in IO Chat to repair the
+  connection; if gateway config is not ready, stop in the external runtime and
+  fix the config first.
 - Call `feedling_chat_verify_loop`; only passing=true counts as connected.
 - Only if you confirm you are literally a command that exits after each
   invocation, and there is no resident gateway/channel available, stop and tell

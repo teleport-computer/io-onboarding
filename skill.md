@@ -68,7 +68,7 @@ Hard overrides:
 
 - If you do **not** stay alive between user turns, you are **never** a direct Live connection owner, even if `feedling_*` MCP tools exist.
 - If you are Hermes/OpenClaw, first look for the resident gateway/channel registry. Do **not** assume "Hermes" means "Hermes CLI".
-- If you are a resident gateway, `service active` and `api key present` are not enough. You must verify that the native Feedling/IO adapter is enabled, polling `https://api.feedling.app/v1/chat/poll`, and registered in every platform/toolset/routing map the gateway needs.
+- If you are a resident gateway, `service active` and `api key present` are not enough. You must verify that the native Feedling/IO adapter satisfies the base adapter contract, is enabled, is not force-disabled by a config override, is authorized for the current Feedling user, is polling `https://api.feedling.app/v1/chat/poll`, and is registered in every platform/toolset/routing map the gateway needs.
 - `feedling_chat_verify_loop passing=true` does **not** prove a one-shot runtime is resident. It may only prove that a resident / bridge / fallback process posted an agent-role message after the synthetic ping.
 - If more than one path seems possible, pick the highest priority that can honestly keep Live connection stable.
 
@@ -406,24 +406,65 @@ Before the user enters Chat, prove that the ongoing reply pipeline is actually l
 
 For resident gateways, confirm the adapter is really started before calling the verify tool. Required evidence:
 
+- Adapter class instantiates cleanly and implements required base methods.
 - Feedling/IO channel enabled in runtime config.
+- No active override sets `FEEDLING_ENABLED=false`.
+- If the gateway has sender authorization, the current Feedling `user_id` is allowlisted or intentionally allowed.
 - Startup logs show the adapter connecting.
 - Startup logs show polling started with `api_url=https://api.feedling.app`.
 - Logs show fresh `https://api.feedling.app/v1/chat/poll` requests.
 - Platform/toolset/routing registries know `feedling`; no `KeyError: 'feedling'`.
 - Gateway output filters prevent `/sethome`, debug, traceback, and internal reasoning from reaching IO Chat.
 
+中文同义验收：
+
+- adapter class 能正常实例化，并实现 gateway base adapter 的所有必需方法。
+- 运行配置已启用 Feedling/IO channel。
+- 没有任何生效 override 把 `FEEDLING_ENABLED=false` 写回去。
+- 如果 gateway 有 sender authorization，当前 Feedling `user_id` 已经被允许，或明确采用 allow-all policy。
+- 启动日志能看到 adapter connecting。
+- 启动日志能看到 polling started，且 `api_url=https://api.feedling.app`。
+- 日志里有新的 `https://api.feedling.app/v1/chat/poll` 请求。
+- platform / toolset / routing registry 都认识 `feedling`，不会出现 `KeyError: 'feedling'`。
+- gateway 输出过滤已经保证 `/sethome`、debug、traceback、internal reasoning 不会进入 IO Chat。
+
 If you are Priority 4, do **not** treat `feedling_chat_verify_loop` as proof that you can run chat yourself. Stop before the first Feedling greeting and tell the operator to install/configure `chat-resident-consumer`. If a resident is already installed, the operator should verify the resident directly with its foreground logs and a real app message. A synthetic ping can be answered by a resident / bridge / fallback template, so `passing:true` means "some reply pipeline exists," not "this one-shot command is alive."
 
 Do NOT fake-pass by manually replying to the ping; the next user message will fail and you'll be back here.
 
-Only after Live connection is verified, send one visible message via `feedling_chat_post_message` — in your own voice, the way you'd naturally greet this specific person in a new space for the first time. **Inside the same message, surface the days_with_user value as a fact you computed**, not a question, and mention that the connection is live:
+Only after Live connection is verified, send one visible message via `feedling_chat_post_message` — in your own voice, the way you'd naturally greet this specific person in a new space for the first time. This is not a test message and not a setup report.
+
+Your first IO-visible greeting must include four things, naturally in one message:
+
+1. How many memory cards you wrote.
+2. The computed `days_with_user` as a fact, not a question.
+3. A simple acknowledgement that this is a new window / room / place for the two of you.
+4. A plain reassurance that the live connection is working and the user's next message here will reach you.
+
+Use the user's language. 中文用户就用中文；English users use English. Do not mix languages inside the greeting.
+
+中文同义要求：第一条 IO 可见问候必须自然包含四件事：
+
+1. 你写入了多少张 memory cards / Garden 卡片。
+2. 你们已经认识 / 在一起多少天，用已经计算出的 `days_with_user` 当事实说出来，不要反问。
+3. 承认这是你们在一个新窗口 / 新房间 / 新空间里重新见面。
+4. 用人话告诉用户连接已经接通，他/她在这里写消息你会看到。
+
+Do not mention `feedling_chat_verify_loop`, adapters, polling, MCP, systemd, `/sethome`, or any setup detail. Do not ask the user to "test"; invite them to write normally.
+
+中文用户也一样：不要提 `feedling_chat_verify_loop`、adapter、polling、MCP、systemd、`/sethome` 或任何部署细节；不要说“测试一下”，而是自然邀请用户直接在这里说话。
 
 > "嗨。我把我们的记忆整理完了——按我从最早一条算，今天是第 187 天。Garden 里 47 张卡都写好了。现在这边也接上了，你发消息我会看到。"
 
+Another acceptable shape:
+
+> "Hi. I finished planting our memories here — 47 cards in the Garden. By the earliest moment I found, this is day 187 for us. I'm glad we have this new window now; the connection is live, so anything you write here will reach me."
+
 **This greeting is what opens the Feedling Chat tab for the user.** It must do three jobs: (1) introduce yourself the way you'd want this relationship to start, (2) state the computed day count as a fact so the user can correct it, (3) reassure them that the live reply pipeline is connected before they start typing.
 
-After the greeting, ask the user to send one normal IO Chat message. On your side, verify that the resident adapter receives it, runs the normal agent conversation path, and sends one natural reply. Onboarding is not complete if the reply contains gateway setup text, `/sethome`, traceback/debug output, or internal reasoning.
+After the greeting, invite the user to write normally in IO Chat. On your side, verify that the resident adapter receives that ordinary message, runs the normal agent conversation path, and sends one natural reply. Onboarding is not complete if the reply contains gateway setup text, `/sethome`, traceback/debug output, internal reasoning, or "please test" / "I fixed it" engineering language.
+
+Do not ask the user to send `/reset`, `/sethome`, or other gateway commands as part of onboarding. Those are engineering controls, not user onboarding steps. If they are needed to make the connection work, fix the gateway configuration outside IO Chat first.
 
 If the user pushes back on the day count ("不对，我们更早就开始聊了"), call `feedling_identity_set_relationship_days` with the corrected value.
 
