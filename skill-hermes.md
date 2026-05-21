@@ -12,4 +12,4 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 
 ## Override
 
-Configure the independent resident consumer service with the user's `FEEDLING_API_URL`, `FEEDLING_API_KEY`, optional `FEEDLING_MCP_URL`, and your HTTP or CLI agent entry.
+Configure the independent resident consumer service with the user's `FEEDLING_API_URL`, `FEEDLING_API_KEY`, optional `FEEDLING_MCP_URL` / `FEEDLING_MCP_KEY`, and your real HTTP or CLI agent entry. If you use Hermes/OpenClaw CLI, use `hermes chat -Q --max-turns 1 -q "{message}"`; the consumer stores `session_id` and resumes later turns with `--resume`.

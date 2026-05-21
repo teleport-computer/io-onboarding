@@ -97,11 +97,11 @@ iOS 上的信号：进度条里 "Chat loop" 那一行显示 `send a message →`
 - **resident consumer 没跑起来**——确认 `feedling-chat-resident` / IO resident consumer service 当前正在运行，并且使用的是这一次 onboarding 的 `FEEDLING_API_KEY`。
 - **consumer 没有轮询正确 API**——日志应该看到 `GET https://api.feedling.app/v1/chat/poll` 或自托管 API 的同等路径。
 - **API URL 配错**——`/v1/chat/poll` 必须走 `https://api.feedling.app`。如果日志里是 `https://mcp.feedling.app/v1/chat/poll`，就是错的；`mcp.feedling.app` 只用于 MCP SSE。
-- **agent 入口没配置好**——HTTP 模式需要 `AGENT_MODE=http` + `AGENT_HTTP_URL`；CLI 模式需要 `AGENT_MODE=cli` + `AGENT_CLI_CMD`。consumer 必须能用同一个环境调用到真实 agent，而不是只在手动 shell 里能跑。
+- **agent 入口没配置好**——HTTP 模式只适合真实 resident HTTP endpoint；Hermes API server 要用 `AGENT_HTTP_PROTOCOL=openai` + `/v1/chat/completions`。没有真实 HTTP endpoint 时用 CLI；Hermes / OpenClaw 默认 `AGENT_CLI_CMD=hermes chat -Q --max-turns 1 -q "{message}"`，consumer 会保存 `session_id` 并用 `--resume` 续接。consumer 必须能用同一个环境调用到真实 agent，而不是只在手动 shell 里能跑。
 - **CLI PATH / venv 不一致**——手动运行 `hermes` 或其他命令成功，不代表 resident service 里也能找到它。把 `AGENT_CLI_CMD` 写成绝对路径，或在 service env 里写明 PATH / venv。
 - **消息解密失败**——日志如果出现 `user message has no plaintext content`，确认 `FEEDLING_MCP_URL` 或等价解密来源已配置，且当前 key 可用。
 - **key 已旧或账号被 reset**——401 / `user_not_found` 说明 agent 还 pin 着旧 key。回到 iOS onboarding 或 Settings 复制新的 resident consumer config，替换 `FEEDLING_API_KEY` 后再连。
-- **consumer 回了模板而不是真 agent**——如果用户看到“send that once more”或“我收到了，继续说”这类模板，说明 consumer 没有调到真实 agent。先修 `AGENT_HTTP_URL` / `AGENT_CLI_CMD`，再跑 verify。
+- **consumer 回了模板而不是真 agent**——如果用户看到“send that once more”或“我收到了，继续说”这类模板，说明 consumer 没有调到真实 agent，或 fallback 没有关闭。生产 onboarding 保持 `SEND_FALLBACK_ON_AGENT_ERROR=false`；先修 HTTP/CLI agent entry，再跑 verify。
 - **setup 输出泄漏到用户 Chat**——如果用户看到部署状态、traceback、internal reasoning 或工程命令，说明 agent entry 的输出没有做用户可见内容清理。IO Chat 里只应该出现自然问候和自然回复。
 - **真实消息验收没做**——`feedling_chat_verify_loop passing=true` 之后，还要让用户在 IO Chat 发一条普通消息，确认 consumer 收到、agent 正常生成、`POST /v1/chat/response` 成功。
 - **Vision gate 拦了**：agent 想 `feedling_push_live_activity` 但没先 `feedling_screen_decrypt_frame(include_image=true)`，server 返回 `vision_gate_missing_decrypt`。让 agent 先 decrypt frame。
@@ -253,9 +253,13 @@ agent's HTTP or CLI entry, then POSTs the reply to
 - **Wrong API URL** — `/v1/chat/poll` must use `https://api.feedling.app`.
   If logs show `https://mcp.feedling.app/v1/chat/poll`, fix the consumer env;
   `mcp.feedling.app` is only the MCP SSE host.
-- **Agent entry is not configured** — HTTP mode needs `AGENT_MODE=http` +
-  `AGENT_HTTP_URL`; CLI mode needs `AGENT_MODE=cli` + `AGENT_CLI_CMD`. The
-  consumer must be able to call the real agent from its own environment.
+- **Agent entry is not configured** — HTTP mode is only for a real resident
+  HTTP endpoint. Hermes API server uses `AGENT_HTTP_PROTOCOL=openai` plus
+  `/v1/chat/completions`. Without a real HTTP endpoint, use CLI; for
+  Hermes / OpenClaw, default to
+  `AGENT_CLI_CMD=hermes chat -Q --max-turns 1 -q "{message}"`. The consumer
+  stores `session_id` and resumes later turns with `--resume`. It must be able
+  to call the real agent from its own environment.
 - **CLI PATH / venv mismatch** — a command working in an interactive shell does
   not guarantee the resident service can find it. Use absolute paths or set the
   service PATH / venv explicitly.
@@ -267,7 +271,9 @@ agent's HTTP or CLI entry, then POSTs the reply to
   replace `FEEDLING_API_KEY`.
 - **Template replies instead of real agent replies** — messages like "send that
   once more" or "I received it, continue" mean the consumer did not reach the
-  real agent. Fix `AGENT_HTTP_URL` / `AGENT_CLI_CMD`, then verify again.
+  real agent, or fallback was left on. Production onboarding keeps
+  `SEND_FALLBACK_ON_AGENT_ERROR=false`. Fix the HTTP/CLI agent entry, then
+  verify again.
 - **Setup output leaked into IO Chat** — deployment status, traceback, internal
   reasoning, and engineering commands should stay in the external runtime. IO
   Chat should receive only natural greeting and natural replies.

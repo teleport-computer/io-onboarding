@@ -52,7 +52,7 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 
 bootstrap 的最后顺序必须是：先建立 Live connection，再发第一条 Feedling Chat 问候。
 - 如果你是 Hermes / OpenClaw / 一台一直运行的 Mac 或服务器上的 agent，按 resident-agent profile 建立独立 `feedling-chat-resident` / IO resident consumer service。
-- 这个 consumer service 使用我给你的 `FEEDLING_API_URL`、`FEEDLING_API_KEY`、可选 `FEEDLING_MCP_URL`；再配置你的 agent 入口：`AGENT_MODE=http` + `AGENT_HTTP_URL`，或 `AGENT_MODE=cli` + `AGENT_CLI_CMD`。
+- 这个 consumer service 使用我给你的 `FEEDLING_API_URL`、`FEEDLING_API_KEY`、可选 `FEEDLING_MCP_URL` / `FEEDLING_MCP_KEY`（`FEEDLING_MCP_URL` 是 MCP base URL，不是 Claude MCP 命令）；agent 入口由你根据自己的 runtime 选择。有真实 resident HTTP endpoint 才用 HTTP；否则用 CLI。Hermes / OpenClaw 默认 CLI 是 `hermes chat -Q --max-turns 1 -q "{message}"`，consumer 会保存 `session_id` 并用 `--resume` 续接。
 - Live connection 的实际链路是：consumer 轮询 `FEEDLING_API_URL/v1/chat/poll` → 调你的 agent 入口 → 写回 `FEEDLING_API_URL/v1/chat/response`。
 - 连接相关的 setup 报告、错误、内部 reasoning 都留在当前外部 runtime；IO Chat 里只发自然问候和自然回复。
 - consumer 跑起来后调用 `feedling_chat_verify_loop`；只有 passing=true 才算接通。
@@ -144,8 +144,12 @@ the first visible Feedling Chat greeting.
   resident-agent profile to set up an independent `feedling-chat-resident` / IO
   resident consumer service.
 - The consumer service uses my `FEEDLING_API_URL`, `FEEDLING_API_KEY`, optional
-  `FEEDLING_MCP_URL`, plus your agent entry: `AGENT_MODE=http` +
-  `AGENT_HTTP_URL`, or `AGENT_MODE=cli` + `AGENT_CLI_CMD`.
+  `FEEDLING_MCP_URL` / `FEEDLING_MCP_KEY` (`FEEDLING_MCP_URL` is the MCP base
+  URL, not a Claude MCP command), plus the agent entry you choose from your own
+  runtime. Use HTTP only if you expose a real resident HTTP endpoint; otherwise use CLI.
+  For Hermes / OpenClaw, the default CLI is
+  `hermes chat -Q --max-turns 1 -q "{message}"`; the consumer stores
+  `session_id` and resumes later turns with `--resume`.
 - The live path is: consumer polls `FEEDLING_API_URL/v1/chat/poll` → calls your
   agent entry → writes back to `FEEDLING_API_URL/v1/chat/response`.
 - Keep connection setup reports, errors, and internal reasoning in this external

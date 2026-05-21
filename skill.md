@@ -41,10 +41,12 @@ Use the path that honestly fits your runtime:
 ### Path 1 — Independent resident consumer service
 
 - Use this for Hermes / OpenClaw, Claude Code on a Mac mini or VPS, an always-on agent loop, or any agent that can expose a local HTTP or CLI entry.
-- Configure `feedling-chat-resident` / IO resident consumer with the user's `FEEDLING_API_URL`, `FEEDLING_API_KEY`, and optional `FEEDLING_MCP_URL`.
-- Point the consumer at your agent entry:
-  - HTTP: `AGENT_MODE=http` + `AGENT_HTTP_URL=<your agent endpoint>`
-  - CLI: `AGENT_MODE=cli` + `AGENT_CLI_CMD=<command that accepts {message}>`
+- Configure `feedling-chat-resident` / IO resident consumer with the user's `FEEDLING_API_URL`, `FEEDLING_API_KEY`, and optional `FEEDLING_MCP_URL` / `FEEDLING_MCP_KEY`. `FEEDLING_MCP_URL` is the MCP base URL, not a `claude mcp add ...` command.
+- Fill in the agent entry from your own runtime, not from the user:
+  - HTTP only if your runtime exposes a real resident endpoint that reaches your actual agent session. In that case set `AGENT_MODE=http` and set `AGENT_HTTP_URL` to the URL you expose from your own runtime.
+  - For Hermes' API server, use OpenAI-compatible mode: `AGENT_MODE=http`, `AGENT_HTTP_PROTOCOL=openai`, `AGENT_HTTP_URL=http://127.0.0.1:<port>/v1/chat/completions`. The consumer preserves `X-Hermes-Session-Id` / `X-Hermes-Session-Key`.
+  - CLI if your runtime is called by command: `AGENT_MODE=cli` + `AGENT_CLI_CMD=<command that accepts {message}>`.
+  - Hermes/OpenClaw default candidate when no HTTP endpoint exists: `AGENT_MODE=cli` + `AGENT_CLI_CMD=hermes chat -Q --max-turns 1 -q "{message}"`. The consumer stores the first `session_id` and resumes later turns with `--resume`. If service env cannot find `hermes`, resolve it with `which hermes` / your venv path and use an absolute executable path.
 - The consumer owns the ongoing reply loop:
   - `GET FEEDLING_API_URL/v1/chat/poll`
   - call your agent entry
@@ -69,7 +71,7 @@ Selection rules:
 - Tool access is not the same as a Live connection. The Live connection belongs to the resident consumer that keeps polling between user messages.
 - A one-shot CLI command can still be used as the agent entry, but only through `AGENT_MODE=cli` inside the resident consumer service.
 - If more than one path seems possible, choose the one that gives the resident consumer a stable agent entry with the least extra machinery.
-- If the agent entry cannot be called from the resident consumer yet, finish memory + identity, then stop before Step 6 and report the missing entry details in the external runtime.
+- If the agent entry cannot be called from the resident consumer yet, first inspect your own runtime for a real HTTP endpoint or CLI command. If neither exists, finish memory + identity, then stop before Step 6 and report the exact missing runtime capability in the external runtime.
 
 ---
 
@@ -751,6 +753,7 @@ The reference HTTP-mode setup runs `tools/chat_resident_consumer.py` as an indep
 - Calls your configured agent backend (HTTP API or CLI) with the plaintext.
 - Wraps the reply text into a v1 envelope and POSTs `/v1/chat/response`.
 - Handles `content_type=image` messages via a configurable `IMAGE_PLACEHOLDER`.
+- Leaves `SEND_FALLBACK_ON_AGENT_ERROR=false` in production onboarding. If the agent entry fails, diagnose it in the external runtime instead of posting template fallback text into IO Chat.
 
 Setup details: `tools/README.md`. Env example: `deploy/chat_resident.env.example`. Service unit: `deploy/feedling-chat-resident.service`.
 
