@@ -25,7 +25,7 @@ Get IO running on your phone, with your own AI agent inside, with your shared hi
 
 打开 app → Chat。先选 TA 从哪里来：
 
-- **TA 在我的机器上**：Hermes / OpenClaw / 一台一直开着的 Mac 或 server。复制 `常驻连接配置`，形如 `FEEDLING_API_URL` / `FEEDLING_API_KEY` / `FEEDLING_MCP_URL`。这不是 `claude mcp add` 命令。
+- **TA 在我的机器上**：Hermes / OpenClaw / 一台一直开着的 Mac 或 server。复制 `resident consumer config`，形如 `FEEDLING_API_URL` / `FEEDLING_API_KEY` / `FEEDLING_MCP_URL`。这不是 `claude mcp add` 命令。
 - **TA 在聊天工具里**：Claude / ChatGPT / Gemini / Cursor 等。复制 `MCP 连接`，形如 `claude mcp add feedling --transport sse "https://mcp.feedling.app/sse?key=…"`。
 - **我不确定**：复制连接信息，让 TA 先判断自己属于哪条路径，再只使用对应的那一段。
 
@@ -51,16 +51,15 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 全程预计 30–60 分钟，不要跳过深度。我准备好等。
 
 bootstrap 的最后顺序必须是：先建立 Live connection，再发第一条 Feedling Chat 问候。
-- 先按 skill.md 的 Connection owner selection 选最高优先级路径：resident agent/gateway > chat-product MCP client > HTTP/API backend > literal one-shot command fallback。
-- 如果你是 Hermes / OpenClaw / 一台一直运行的 Mac 或服务器上的常驻 agent，走 resident Feedling/IO connector；不要默认降级成 `hermes chat ...` CLI。
-- 如果连接需要重启某个外部服务，可以重启外部服务；但不要在当前 turn 里静默重启承载你自己的 resident gateway。需要自我重启时，先停下并告诉我重启后再继续。
-- 不要把 `/sethome`、gateway 配置提示、traceback、internal reasoning 发进 IO Chat；也不要让我在 IO Chat 里发 `/reset` / `/sethome` 来修连接。
-- 调用 `feedling_chat_verify_loop`；只有 passing=true 才算接通。
-- 只有当你确认自己真的只是每轮调用后会退出的命令、且没有 resident gateway/channel 可用时，才停下，告诉我需要安装 `chat-resident-consumer` 来接管长期轮询。
+- 如果你是 Hermes / OpenClaw / 一台一直运行的 Mac 或服务器上的 agent，按 resident-agent profile 建立独立 `feedling-chat-resident` / IO resident consumer service。
+- 这个 consumer service 使用我给你的 `FEEDLING_API_URL`、`FEEDLING_API_KEY`、可选 `FEEDLING_MCP_URL`；再配置你的 agent 入口：`AGENT_MODE=http` + `AGENT_HTTP_URL`，或 `AGENT_MODE=cli` + `AGENT_CLI_CMD`。
+- Live connection 的实际链路是：consumer 轮询 `FEEDLING_API_URL/v1/chat/poll` → 调你的 agent 入口 → 写回 `FEEDLING_API_URL/v1/chat/response`。
+- 连接相关的 setup 报告、错误、内部 reasoning 都留在当前外部 runtime；IO Chat 里只发自然问候和自然回复。
+- consumer 跑起来后调用 `feedling_chat_verify_loop`；只有 passing=true 才算接通。
 - Live connection 接通后，再发第一条自然问候，告诉我记忆和身份已经写好、你算出的天数、以及我现在发消息你会看到。之后等我发一条普通消息，并自然回复一次，才算完成。
 
 最后使用下面这份连接信息：
-[粘贴第 2 步复制的连接信息。Hermes / OpenClaw resident 用 FEEDLING_* 配置；Claude / ChatGPT / Gemini 这类聊天工具才用 claude mcp add。]
+[粘贴第 2 步复制的连接信息。Hermes / OpenClaw / Mac / server 路径用 resident consumer config；Claude / ChatGPT / Gemini 这类聊天工具才用 MCP 命令。]
 ```
 
 **4. 等（30–60 分钟）**
@@ -113,7 +112,7 @@ Install via the TestFlight invite. On first launch IO auto-registers an account;
 
 Open the app → Chat. First choose where he is coming from:
 
-- **On my machine**: Hermes / OpenClaw / an always-on Mac or server. Copy the `resident config`, which looks like `FEEDLING_API_URL` / `FEEDLING_API_KEY` / `FEEDLING_MCP_URL`. This is not a `claude mcp add` command.
+- **On my machine**: Hermes / OpenClaw / an always-on Mac or server. Copy the `resident consumer config`, which looks like `FEEDLING_API_URL` / `FEEDLING_API_KEY` / `FEEDLING_MCP_URL`. This is not a `claude mcp add` command.
 - **In a chat app**: Claude / ChatGPT / Gemini / Cursor, etc. Copy the `MCP connection`, which looks like `claude mcp add feedling --transport sse "https://mcp.feedling.app/sse?key=…"`.
 - **I'm not sure**: copy the connection info and let him identify the right path first, then use only the matching block.
 
@@ -141,29 +140,25 @@ extraction. Expect 30–60 minutes total. Do not skip depth. I'm prepared to wai
 
 The final bootstrap order must be: establish Live connection first, then send
 the first visible Feedling Chat greeting.
-- First use skill.md's Connection owner selection and pick the highest-priority
-  honest path: resident agent/gateway > chat-product MCP client > HTTP/API
-  backend > literal one-shot command fallback.
-- If you are Hermes / OpenClaw / an always-on agent on a Mac or server, enable
-  the resident Feedling/IO connector first; do not default to `hermes chat ...`
-  CLI.
-- If connection setup needs to restart an external service, that is allowed.
-  Do not silently restart the resident gateway carrying this current turn. If
-  you need to restart yourself, stop and tell me to continue after restart.
-- Do not send `/sethome`, gateway config prompts, traceback, or internal
-  reasoning into IO Chat. Do not ask me to send `/reset` / `/sethome` in IO
-  Chat to repair the connection.
-- Call `feedling_chat_verify_loop`; only passing=true counts as connected.
-- Only if you confirm you are literally a command that exits after each
-  invocation, and there is no resident gateway/channel available, stop and tell
-  me I need to install `chat-resident-consumer` to own long-running polling.
+- If you are Hermes / OpenClaw / an always-on agent on a Mac or server, use the
+  resident-agent profile to set up an independent `feedling-chat-resident` / IO
+  resident consumer service.
+- The consumer service uses my `FEEDLING_API_URL`, `FEEDLING_API_KEY`, optional
+  `FEEDLING_MCP_URL`, plus your agent entry: `AGENT_MODE=http` +
+  `AGENT_HTTP_URL`, or `AGENT_MODE=cli` + `AGENT_CLI_CMD`.
+- The live path is: consumer polls `FEEDLING_API_URL/v1/chat/poll` → calls your
+  agent entry → writes back to `FEEDLING_API_URL/v1/chat/response`.
+- Keep connection setup reports, errors, and internal reasoning in this external
+  runtime. IO Chat should only receive the natural greeting and natural replies.
+- After the consumer is running, call `feedling_chat_verify_loop`; only
+  passing=true counts as connected.
 - After Live connection is connected, send the first natural greeting and tell
   me the memories and identity are set, what day count you computed, and that
   you will now see my messages. Then wait for one normal message from me and
   reply naturally once; that final real chat reply completes onboarding.
 
 Finally, use these connection details:
-[paste the connection details from step 2. Hermes / OpenClaw residents use the FEEDLING_* config; Claude / ChatGPT / Gemini-style chat tools use claude mcp add.]
+[paste the connection details from step 2. Hermes / OpenClaw / Mac / server path uses the resident consumer config; Claude / ChatGPT / Gemini-style chat tools use the MCP command.]
 ```
 
 **4. Wait (30–60 min)**

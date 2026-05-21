@@ -4,7 +4,7 @@ This file is kept for old app builds. New onboarding should use:
 
 https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill-resident-agent.md
 
-Hermes and OpenClaw are treated as resident agents in the intended IO setup: they run on the user's own machine/server and stay alive between user turns.
+Hermes and OpenClaw use the resident-agent profile. The IO live chat path is an independent `feedling-chat-resident` consumer service on the user's machine/server.
 
 Read the resident-agent profile now, then read the base skill:
 
@@ -12,4 +12,4 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 
 ## Override
 
-Do not default to `chat-resident-consumer` for Hermes / OpenClaw. That bridge is only a fallback for unusual one-shot runtimes that exit after each invocation.
+Configure the independent resident consumer service with the user's `FEEDLING_API_URL`, `FEEDLING_API_KEY`, optional `FEEDLING_MCP_URL`, and your HTTP or CLI agent entry.

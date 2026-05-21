@@ -90,23 +90,20 @@ Agent 调 `feedling_identity_replace`。
 
 iOS 上的信号：进度条里 "Chat loop" 那一行显示 `send a message →`（说明 agent 发过初始消息但没轮询），或者 `—`（说明连初始消息都没发）。
 
-**根因**：bootstrap 结束后必须有一个真实的长期 reply pipeline。Hermes / OpenClaw 这类常驻 gateway 应该像 Telegram/WeChat/Feishu bot 一样启用一个 Feedling/IO channel，由同一个 resident process 持续轮询并回复。只有字面意义上的 one-shot command（例如每次只运行一次 `hermes chat ...` 然后退出）才需要 `chat-resident-consumer` 这种 fallback bridge。
+**根因**：bootstrap 结束后必须有一个真实的长期 reply pipeline。标准路径是独立 `feedling-chat-resident` / IO resident consumer service：它持续轮询 `FEEDLING_API_URL/v1/chat/poll`，把消息交给 agent 的 HTTP 或 CLI 入口，再 POST 到 `FEEDLING_API_URL/v1/chat/response`。
 
 **最常见原因（按概率）：**
 
-- **选错 Live connection owner**——按 [`skill.md` 的 "Connection owner selection"](./skill.md#connection-owner-selection-before-any-tool-call) 重新选最高优先级路径：resident agent/gateway > chat-product MCP client > HTTP/API backend > literal one-shot command fallback。Hermes/OpenClaw 如果有 resident gateway，就应该先找/启用 Feedling channel，而不是默认走 CLI bridge。
-- **Agent 把 Hermes/OpenClaw 误判成 one-shot CLI**——让它先检查 resident gateway/channel registry。缺少 Feedling channel 的结论应该是“启用或实现 Feedling adapter”，不是“把自己降级成 `hermes chat ...`”。
-  - 给它的 prompt：*"先不要继续 onboarding。回答：你现在是否运行在 Hermes/OpenClaw resident gateway 里？这个 gateway 里是否已有 Feedling/IO channel/adapter？如果有，启用它并用当前 key 轮询；如果没有，报告需要实现该 adapter。不要默认使用 hermes chat CLI 或 chat-resident-consumer。"*
-- **`feedling_chat_verify_loop passing=true` 被误读**——这个结果只说明 synthetic ping 后出现了一条 agent-role 回复；如果回复来自 resident / bridge / fallback template，它不能证明 one-shot agent 本人还活着。用真实 app 消息和 resident 前台日志验证。
-- **adapter 类不满足 gateway contract**——服务循环重启并出现 `TypeError: Can't instantiate abstract class FeedlingAdapter ...`，说明 adapter 缺 base class 要求的方法。先补齐抽象方法（例如 Hermes/OpenClaw 里的 `get_chat_info(chat_id)`），服务稳定后再继续。
-- **常驻 gateway 没启动 Feedling long-poll**——如果 agent 确实是 resident，让它检查 gateway logs：是否有 Feedling channel startup、是否用当前 onboarding key、是否 poll `/v1/chat/poll`、是否 POST `/v1/chat/response`。
-- **Feedling 被配置层强制关闭**——如果 platform/adapter 代码都存在但没有 startup/poll 日志，检查 systemd drop-ins / env / config snapshot，尤其是 `FEEDLING_ENABLED=false` 或 `*disable*feedling*.conf`。
+- **resident consumer 没跑起来**——确认 `feedling-chat-resident` / IO resident consumer service 当前正在运行，并且使用的是这一次 onboarding 的 `FEEDLING_API_KEY`。
+- **consumer 没有轮询正确 API**——日志应该看到 `GET https://api.feedling.app/v1/chat/poll` 或自托管 API 的同等路径。
 - **API URL 配错**——`/v1/chat/poll` 必须走 `https://api.feedling.app`。如果日志里是 `https://mcp.feedling.app/v1/chat/poll`，就是错的；`mcp.feedling.app` 只用于 MCP SSE。
-- **sender allowlist 拦截**——如果 polling 活着但用户消息不进 agent，日志可能有 `Unauthorized user: <usr_...> on feedling`。把当前 Feedling `user_id` 加进 gateway allowlist（例如 `FEEDLING_ALLOWED_USERS=<user_id>`），或明确采用 allow-all policy。
-- **平台/工具集 registry 漏了 `feedling`**——adapter 能启动但第一条消息后出现 `KeyError: 'feedling'`，说明 gateway 的 platform/toolset/routing/home-channel registry 没补全。修 registry，不要让用户在 IO Chat 里处理。
-- **gateway 配置提示泄漏到用户 Chat**——如果用户看到 "No home channel is set"、`/sethome`、部署状态、traceback、internal reasoning，说明 adapter 没把 gateway console 和 relationship chat 隔离。Feedling 应该静默注册/跳过 home-channel prompt，且过滤 debug/reasoning 后再 POST `/v1/chat/response`。
-- **用户被要求发 `/reset` / `/sethome` 才能继续**——这是 bug，不是正常 onboarding。不要把 gateway 命令变成用户步骤；先在 adapter/config 层修好，然后只用一条普通消息做最终验证。
-- **真的只有 one-shot command**——普通 shell 单次调用、每轮退出的 CLI、不能驻留的网页产品都不会自己 poll IO 消息。**这种情况不是换一句 prompt 能修的**：配置 `chat-resident-consumer`，或换成真正常驻的 runtime。
+- **agent 入口没配置好**——HTTP 模式需要 `AGENT_MODE=http` + `AGENT_HTTP_URL`；CLI 模式需要 `AGENT_MODE=cli` + `AGENT_CLI_CMD`。consumer 必须能用同一个环境调用到真实 agent，而不是只在手动 shell 里能跑。
+- **CLI PATH / venv 不一致**——手动运行 `hermes` 或其他命令成功，不代表 resident service 里也能找到它。把 `AGENT_CLI_CMD` 写成绝对路径，或在 service env 里写明 PATH / venv。
+- **消息解密失败**——日志如果出现 `user message has no plaintext content`，确认 `FEEDLING_MCP_URL` 或等价解密来源已配置，且当前 key 可用。
+- **key 已旧或账号被 reset**——401 / `user_not_found` 说明 agent 还 pin 着旧 key。回到 iOS onboarding 或 Settings 复制新的 resident consumer config，替换 `FEEDLING_API_KEY` 后再连。
+- **consumer 回了模板而不是真 agent**——如果用户看到“send that once more”或“我收到了，继续说”这类模板，说明 consumer 没有调到真实 agent。先修 `AGENT_HTTP_URL` / `AGENT_CLI_CMD`，再跑 verify。
+- **setup 输出泄漏到用户 Chat**——如果用户看到部署状态、traceback、internal reasoning 或工程命令，说明 agent entry 的输出没有做用户可见内容清理。IO Chat 里只应该出现自然问候和自然回复。
+- **真实消息验收没做**——`feedling_chat_verify_loop passing=true` 之后，还要让用户在 IO Chat 发一条普通消息，确认 consumer 收到、agent 正常生成、`POST /v1/chat/response` 成功。
 - **Vision gate 拦了**：agent 想 `feedling_push_live_activity` 但没先 `feedling_screen_decrypt_frame(include_image=true)`，server 返回 `vision_gate_missing_decrypt`。让 agent 先 decrypt frame。
 - **Agent 循环 retry 但失败**：Settings → Health Check → "Chat round-trip" 行。如果显示 "no agent reply yet"，server 也没收到，问题在 agent 侧。
 
@@ -135,7 +132,7 @@ iOS 上的信号：reset 完成时会弹出 "Your old key is dead." 的 sheet，
 1. iOS app → Chat onboarding → 按路径复制连接信息。
 2. 把旧配置换成新的：
    - **Claude Code / Claude.ai / Claude Desktop / ChatGPT / Gemini 这类聊天工具**：先移除旧 feedling MCP，再 paste 新的 `claude mcp add feedling …` 或等价 MCP URL。
-   - **Hermes / OpenClaw / 自己起的 resident**：不要用 `claude mcp add`；编辑 resident Feedling/IO channel env/config，把 `FEEDLING_API_KEY` 换成新 key，并确认 `FEEDLING_API_URL=https://api.feedling.app`。如果需要重启，重启对应外部 resident service（或你对应的服务名）。
+   - **Hermes / OpenClaw / 自己起的 resident**：使用新的 resident consumer config 更新 `feedling-chat-resident` / IO resident consumer service：`FEEDLING_API_URL=https://api.feedling.app`、新的 `FEEDLING_API_KEY`、可选 `FEEDLING_MCP_URL`，以及你的 `AGENT_MODE` / agent entry。
 3. 让 agent 重连，再发一条消息。它的 `feedling_bootstrap` 这次会返回 `first_time`——新账号是空的，让它重走 bootstrap。
 
 **注意：** 旧账号的 chat / identity / memory garden 已经在服务端被删除了，找不回来。如果你只想轮换 key 但保留数据，**不要**用 Delete Account & Reset，用 Settings → Storage → "Regenerate API Key"。
@@ -162,7 +159,7 @@ iOS 上的信号：reset 完成时会弹出 "Your old key is dead." 的 sheet，
 
 1. **Is the MCP connection up?** In your agent client, verify the MCP server shows as connected.
 
-2. **Did the agent output Step 0?** The skill requires the agent to output the **Step 0 three lines** (earliest message / name / memorable moments count) before any tool call. If the agent jumped straight to writing the identity card without Step 0, it skipped. Tell it: "Restart from Step 0 — output the three lines verbatim before doing anything else."
+2. **Did the agent output Step 0?** The skill requires the agent to output the **Step 0 three lines** (earliest message / name / memorable moments count) before any tool call. If the agent jumped straight to writing the identity card without Step 0, it skipped. Tell it: "Start again from Step 0 — output the three lines verbatim before doing anything else."
 
 3. **Did the agent actually read the skill?** Have it recap: "After fetching skill.md, what's your first action?" Correct answer is "output the Step 0 three lines." If it can't recap, it skipped the fetch — tell it to re-fetch.
 
@@ -242,62 +239,42 @@ iOS signal: in the progress checklist, the **Chat loop** row shows
 `—` (agent didn't even send the greeting).
 
 **Root cause**: after bootstrap there must be a real long-running reply
-pipeline. Hermes / OpenClaw-style resident gateways should add a Feedling/IO
-channel the same way they add Telegram/WeChat/Feishu channels, and that same
-resident process should poll and reply. Only a literal one-shot command
-(`hermes chat ...` invoked once and then exiting) needs the
-`chat-resident-consumer` fallback bridge.
+pipeline. The standard path is an independent `feedling-chat-resident` / IO
+resident consumer service: it polls `FEEDLING_API_URL/v1/chat/poll`, calls the
+agent's HTTP or CLI entry, then POSTs the reply to
+`FEEDLING_API_URL/v1/chat/response`.
 
 **Most common causes (by probability):**
 
-- **Wrong Live connection owner** — re-run [`skill.md` "Connection owner selection"](./skill.md#connection-owner-selection-before-any-tool-call) and pick the highest-priority honest path: resident agent/gateway > chat-product MCP client > HTTP/API backend > literal one-shot command fallback. If Hermes/OpenClaw has a resident gateway, look for or enable a Feedling channel before considering any CLI bridge.
-- **Agent misclassified Hermes/OpenClaw as one-shot CLI** — first inspect the
-  resident gateway/channel registry. If Feedling is missing, the answer is
-  "enable or implement the Feedling adapter", not "run `hermes chat ...`".
-  - Try this prompt: *"Pause onboarding. Answer first: are you running inside
-    the Hermes/OpenClaw resident gateway? Does that gateway have a Feedling/IO
-    channel/adapter? If yes, enable it with this key and poll from there. If
-    no, report that the adapter needs implementation. Do not default to Hermes
-    CLI or chat-resident-consumer."*
-- **`feedling_chat_verify_loop passing=true` was misread** — it only proves
-  that an agent-role message appeared after the synthetic ping. If a resident /
-  bridge / fallback template generated that message, it does not prove the
-  one-shot agent itself is alive. Verify with a real app message and the
-  resident's foreground logs.
-- **A real resident gateway didn't start Feedling long-polling** — check gateway
-  logs for Feedling channel startup, current onboarding key, `/v1/chat/poll`,
-  and `/v1/chat/response`.
-- **Adapter violates the gateway contract** — service restart loops with
-  `TypeError: Can't instantiate abstract class FeedlingAdapter ...` means the
-  adapter is missing a base-class method. Implement required methods first
-  (for Hermes/OpenClaw this includes `get_chat_info(chat_id)`), then continue.
-- **Feedling is force-disabled by config** — if platform/adapter code exists
-  but there is no startup/poll log, inspect systemd drop-ins / env / config
-  snapshots for `FEEDLING_ENABLED=false` or files like
-  `*disable*feedling*.conf`.
+- **The resident consumer is not running** — confirm `feedling-chat-resident` /
+  the IO resident consumer service is running with this onboarding key.
+- **The consumer is not polling the correct API** — logs should show
+  `GET https://api.feedling.app/v1/chat/poll` or the self-hosted equivalent.
 - **Wrong API URL** — `/v1/chat/poll` must use `https://api.feedling.app`.
-  If logs show `https://mcp.feedling.app/v1/chat/poll`, fix the gateway env;
+  If logs show `https://mcp.feedling.app/v1/chat/poll`, fix the consumer env;
   `mcp.feedling.app` is only the MCP SSE host.
-- **Sender allowlist blocked the user** — if polling is alive but user messages
-  do not reach the agent, logs may say `Unauthorized user: <usr_...> on
-  feedling`. Add the current Feedling `user_id` to the gateway allowlist
-  (for example `FEEDLING_ALLOWED_USERS=<user_id>`) or intentionally allow all.
-- **Missing `feedling` registry entry** — if the adapter starts but the first
-  message produces `KeyError: 'feedling'`, the gateway's platform/toolset/
-  routing/home-channel registries are incomplete. Fix the registry; do not ask
-  the user to repair this in IO Chat.
-- **Gateway console leaked into IO Chat** — if users see "No home channel is
-  set", `/sethome`, deployment status, traceback, or internal reasoning, the
-  adapter is posting system/debug text as relationship chat. Feedling should
-  silently register or bypass home-channel prompts and filter debug/reasoning
-  before POSTing `/v1/chat/response`.
-- **User had to send `/reset` / `/sethome` to continue** — this is a bug, not
-  an onboarding step. Do not turn gateway commands into user instructions; fix
-  the adapter/config layer, then use one normal message as final verification.
-- **Your runtime is truly one-shot** — ordinary shell invocations, per-turn
-  CLIs, and non-resident web products are request-response models. This is not
-  fixed by another prompt: configure `chat-resident-consumer` or switch to a
-  genuinely persistent runtime.
+- **Agent entry is not configured** — HTTP mode needs `AGENT_MODE=http` +
+  `AGENT_HTTP_URL`; CLI mode needs `AGENT_MODE=cli` + `AGENT_CLI_CMD`. The
+  consumer must be able to call the real agent from its own environment.
+- **CLI PATH / venv mismatch** — a command working in an interactive shell does
+  not guarantee the resident service can find it. Use absolute paths or set the
+  service PATH / venv explicitly.
+- **Decryption failed** — if logs say `user message has no plaintext content`,
+  configure `FEEDLING_MCP_URL` or the equivalent decrypt source with the current
+  key.
+- **Old key after reset** — 401 / `user_not_found` means the agent is still
+  pinned to an old key. Copy the fresh resident consumer config from iOS and
+  replace `FEEDLING_API_KEY`.
+- **Template replies instead of real agent replies** — messages like "send that
+  once more" or "I received it, continue" mean the consumer did not reach the
+  real agent. Fix `AGENT_HTTP_URL` / `AGENT_CLI_CMD`, then verify again.
+- **Setup output leaked into IO Chat** — deployment status, traceback, internal
+  reasoning, and engineering commands should stay in the external runtime. IO
+  Chat should receive only natural greeting and natural replies.
+- **Final real-message acceptance was skipped** — after
+  `feedling_chat_verify_loop passing=true`, send one ordinary IO Chat message
+  and confirm the consumer receives it, the agent generates normally, and
+  `POST /v1/chat/response` succeeds.
 - **Vision gate blocked the push**: agent tried `feedling_push_live_activity`
   without first calling `feedling_screen_decrypt_frame(include_image=true)` —
   server returns `vision_gate_missing_decrypt`. Tell agent to decrypt the
@@ -330,7 +307,7 @@ iOS signal: when reset finishes, a "Your old key is dead." sheet appears with fr
 1. iOS app → Chat onboarding → copy the path-specific connection details.
 2. Replace the old config with the new one:
    - **Claude Code / Claude.ai / Claude Desktop / ChatGPT / Gemini-style chat tools**: remove the old feedling MCP config, then paste the new `claude mcp add feedling …` line or equivalent MCP URL.
-   - **Hermes / OpenClaw / self-hosted resident**: do not use `claude mcp add`; edit the resident Feedling/IO channel env/config, replace `FEEDLING_API_KEY`, and confirm `FEEDLING_API_URL=https://api.feedling.app`. If restart is required, restart the corresponding external resident service.
+   - **Hermes / OpenClaw / self-hosted resident**: use the fresh resident consumer config to update `feedling-chat-resident` / the IO resident consumer service: `FEEDLING_API_URL=https://api.feedling.app`, the new `FEEDLING_API_KEY`, optional `FEEDLING_MCP_URL`, and your `AGENT_MODE` / agent entry.
 3. Reconnect the agent and send a message. Its next `feedling_bootstrap` will return `first_time` — the new account is empty; let it re-walk the bootstrap flow.
 
 **Note:** The old account's chat / identity / memory garden was deleted server-side and can't be recovered. If you want to rotate the key without losing data, **don't** use Delete Account & Reset — use Settings → Storage → "Regenerate API Key" instead.

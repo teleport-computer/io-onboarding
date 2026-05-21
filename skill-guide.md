@@ -8,15 +8,15 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 
 Then answer these questions in the user's language:
 
-1. Am I running as a resident process on the user's own machine/server?
+1. Am I able to run an independent IO resident consumer service on the user's own machine/server?
 2. Do I stay alive between user turns without the user sending another prompt?
-3. Can I keep polling IO chat continuously?
+3. Can that resident consumer keep polling IO chat continuously?
 4. Am I inside a third-party chat product where the session may end when the window/app closes?
 5. Do I expose a stable HTTP/API endpoint that another process can call?
 
 Map the result:
 
-- Hermes / OpenClaw / Claude Code on a Mac mini or VPS / any process that stays awake on the user's machine/server → resident-agent profile:
+- Hermes / OpenClaw / Claude Code on a Mac mini or VPS / any process with a stable HTTP or CLI agent entry on the user's machine/server → resident-agent profile:
   https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill-resident-agent.md
 - Claude / ChatGPT / Gemini / Cursor / another AI chat product → chat-client profile:
   https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill-chat-client.md
@@ -36,15 +36,15 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 
 然后用用户的语言回答：
 
-1. 我是不是运行在用户自己的机器 / server 上的 resident process？
+1. 我是否能在用户自己的机器 / server 上运行一个独立的 IO resident consumer service？
 2. 不需要用户再发下一条 prompt，我是否能在两轮之间一直活着？
-3. 我是否能持续轮询 IO chat？
+3. 这个 resident consumer 是否能持续轮询 IO chat？
 4. 我是不是在第三方聊天产品里，窗口关闭 / app 休眠 / session 结束后就可能断掉？
 5. 我是否暴露稳定的 HTTP/API endpoint，能让另一个常驻进程调用？
 
 对应关系：
 
-- Hermes / OpenClaw / Mac mini 或 VPS 上一直运行的 Claude Code / 任何不会退出的 agent process → resident-agent profile:
+- Hermes / OpenClaw / Mac mini 或 VPS 上的 Claude Code / 任何在用户机器或 server 上有稳定 HTTP 或 CLI agent 入口的 runtime → resident-agent profile:
   https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill-resident-agent.md
 - Claude / ChatGPT / Gemini / Cursor / 其他 AI 聊天产品 → chat-client profile:
   https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill-chat-client.md

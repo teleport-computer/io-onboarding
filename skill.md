@@ -32,64 +32,44 @@ APPROXIMATE MEMORABLE MOMENTS I CAN RECALL:   <integer | 0>
 
 ---
 
-## Connection owner selection (before any tool call)
+## Connection path (before any tool call)
 
-Feedling works only when someone owns a long-running Live connection: a process must keep polling Feedling chat and must post real replies back. Pick the **highest-priority path that honestly fits your runtime**. Do not choose a lower path if a higher one is available.
+Feedling Chat works when an **independent resident consumer service** keeps the Live connection alive. That service polls Feedling for new user messages, calls your agent entry, and writes the reply back to Feedling.
 
-### Priority 1 — Resident agent / gateway
+Use the path that honestly fits your runtime:
 
-- You are already running as a resident process / daemon owned by the agent system.
-- Examples: Hermes / OpenClaw gateway, a Telegram/WeChat/Feishu-style bot host, Claude Code on a Mac mini, or any agent process that stays awake on the user's machine/server.
-- You stay alive without the operator keeping a local CLI turn open.
-- You can connect Feedling/IO as another resident channel, then poll Feedling continuously and post replies back.
-- → **Best path.** Connect Feedling, verify Live connection before the first Feedling greeting, then run the Main Loop from the same resident identity.
+### Path 1 — Independent resident consumer service
 
-### Priority 2 — Chat-product MCP client
+- Use this for Hermes / OpenClaw, Claude Code on a Mac mini or VPS, an always-on agent loop, or any agent that can expose a local HTTP or CLI entry.
+- Configure `feedling-chat-resident` / IO resident consumer with the user's `FEEDLING_API_URL`, `FEEDLING_API_KEY`, and optional `FEEDLING_MCP_URL`.
+- Point the consumer at your agent entry:
+  - HTTP: `AGENT_MODE=http` + `AGENT_HTTP_URL=<your agent endpoint>`
+  - CLI: `AGENT_MODE=cli` + `AGENT_CLI_CMD=<command that accepts {message}>`
+- The consumer owns the ongoing reply loop:
+  - `GET FEEDLING_API_URL/v1/chat/poll`
+  - call your agent entry
+  - `POST FEEDLING_API_URL/v1/chat/response`
+  - repeat
+- Complete Step 0, the four memory passes, and identity setup through your external runtime conversation with the user. Before Step 6, verify that the resident consumer is running and `feedling_chat_verify_loop` returns `passing=true`.
 
-- You are inside a chat product or desktop/client app that can use MCP tools.
-- Examples: Claude Desktop, Claude Code in an interactive session, Cursor, ChatGPT/Gemini-style MCP clients.
-- Use this only if the client can truly stay available for Feedling messages; ordinary web chats and sleeping desktop apps may not qualify.
-- → Proceed through bootstrap only if you can honestly own the ongoing reply path. Verify Live connection before the first Feedling greeting.
+### Path 2 — Chat-product MCP client
 
-### Priority 3 — HTTP/API agent backend
+- Use this for Claude Desktop / Claude Code / Cursor / ChatGPT / Gemini-style clients that can use MCP tools directly.
+- Add the MCP connection the user gave you, then do Step 0, memory, and identity through the MCP tools.
+- For ongoing IO Chat, this path still needs a process that can keep receiving messages. If the client cannot stay available for incoming IO messages, pair it with Path 1 before Step 6.
 
-- You do not have MCP tools, but you expose a stable HTTP/API endpoint that a resident can call for replies.
-- You are suitable for developer/server integrations where `chat-resident-consumer` or another daemon POSTs user messages to your API.
-- → Use Appendix A for HTTP equivalents and pair with a resident process. Do not claim Live connection until that resident verifies.
+### Path 3 — HTTP/API agent backend
 
-### Priority 4 — Fallback bridge for a literal one-shot command
+- Use this if you do not have MCP tools but expose a stable HTTP/API endpoint that can return replies.
+- Pair that endpoint with Path 1: the resident consumer calls your HTTP endpoint for every IO message.
+- See Appendix A for HTTP endpoint equivalents. Do not claim Live connection until the resident consumer verifies.
 
-- Use this only when the actual runtime is a command that exits after every invocation and there is no resident gateway/channel to enable.
-- Examples: `hermes chat ...` launched as a subprocess, `mcporter` from a shell, or another one-shot local command.
-- This is **not** the normal Hermes/OpenClaw path. If Hermes/OpenClaw is running as a resident gateway, use Priority 1 instead.
-- → Do bootstrap through Pass 1-4 + identity, then STOP before the first Feedling greeting. Tell the operator to install/configure a supported resident bridge such as `chat-resident-consumer` with this command as `AGENT_CLI_CMD`. After the resident owns polling and Live connection verifies, the first greeting may be sent.
+Selection rules:
 
-Hard overrides:
-
-- If you do **not** stay alive between user turns, you are **never** a direct Live connection owner, even if `feedling_*` MCP tools exist.
-- If you are Hermes/OpenClaw, first look for the resident gateway/channel registry. Do **not** assume "Hermes" means "Hermes CLI".
-- If you are a resident gateway, do not turn onboarding into infrastructure repair. Use the normal Feedling connector path. If the connector is missing or broken, stop and report that setup is needed; use troubleshooting only after a concrete failure.
-- If enabling Feedling requires a service restart, first decide whether that restart would kill the process currently carrying this conversation. Restarting an external service you do not inhabit is allowed. Restarting your own resident gateway in-band is not allowed: write the config, tell the user/operator that the resident gateway must be restarted outside this turn, then stop before Step 6. After the user sends a new message post-restart, verify the live connection.
-- `feedling_chat_verify_loop passing=true` does **not** prove a one-shot runtime is resident. It may only prove that a resident / bridge / fallback process posted an agent-role message after the synthetic ping.
-- If more than one path seems possible, pick the highest priority that can honestly keep Live connection stable.
-
-### Literal one-shot command fallback (`hermes chat ...`, `mcporter`, or any command that exits)
-
-- You have `feedling_*` tools available via MCP
-- BUT your process terminates after each turn — there is no "between user inputs" for you
-- You CANNOT run the Main Loop's long-poll natively. **Don't try.**
-- Before choosing this path for Hermes/OpenClaw, verify that there is no resident Hermes/OpenClaw gateway/channel available. The intended Hermes/OpenClaw setup is Priority 1.
-- → **Do bootstrap through Pass 1-4 + identity, then STOP before the first Feedling greeting.** Tell the operator, in their language:
-
-  > "I'm a one-shot CLI runtime — I exit between turns, so I can't run Feedling's Main Loop myself. To make Feedling chat actually work between us, please install `chat-resident-consumer` on the same machine, with me as `AGENT_CLI_CMD`. Setup: <https://github.com/teleport-computer/feedling-mcp/blob/main/tools/README.md>. Without that daemon, you'll send messages in Feedling and I'll never see them — the chat surface will look responsive but won't be."
-
-### C. HTTP-mode (no MCP support)
-
-- No `feedling_*` tools in your catalog; you only do HTTP
-- Same daemon constraint as B
-- → See **Appendix A** at the end of this document for `feedling_X` → HTTP endpoint syntax. Same chat-resident-consumer requirement applies.
-
-**Don't know which?** First answer who owns the long-running Live connection. Tool access alone is not enough. If this is Hermes/OpenClaw, use the resident Feedling connector path if it exists; if it does not exist, stop and say connector setup is needed. Do not improvise a bridge. If `feedling_chat_get_history` exists but your runtime exits after this turn and no resident gateway exists, you need Priority 4. If the tool does not exist, you need Priority 3.
+- Tool access is not the same as a Live connection. The Live connection belongs to the resident consumer that keeps polling between user messages.
+- A one-shot CLI command can still be used as the agent entry, but only through `AGENT_MODE=cli` inside the resident consumer service.
+- If more than one path seems possible, choose the one that gives the resident consumer a stable agent entry with the least extra machinery.
+- If the agent entry cannot be called from the resident consumer yet, finish memory + identity, then stop before Step 6 and report the missing entry details in the external runtime.
 
 ---
 
@@ -101,11 +81,11 @@ Violating any of these means bootstrap is wrong and must be redone.
 
 ❌ **NEVER ignore a `409 bootstrap_incomplete` response.** Body carries `stage` (`needs_memory` / `needs_identity`), counts, and a `required` field telling you exactly what to do. Go back and satisfy the prerequisite. Do NOT retry the same call (gate is stateful), do NOT fabricate verification text to mask the failure, do NOT post stub content to "look responsive."
 
-❌ **NEVER skip the verify tools that apply to your runtime.** After Pass 3 → `feedling_memory_verify`. After `feedling_identity_init` → `feedling_identity_verify`. Before the visible Step 6 greeting → `feedling_chat_verify_loop` **only if Priority 1 / Priority 2 can honestly own the ongoing reply path, or a correctly installed resident is already the intended chat runtime**. Gates enforce thresholds (have enough memories? have identity? is a reply pipeline alive?). Skipping applicable verify = trusting your own self-assessment, which is exactly how fabricated Pass 4 messages and stopgap bridges shipped in past incidents. But do not use `feedling_chat_verify_loop` to override Connection owner selection: a literal one-shot command that exits between turns must still stop and ask the operator to install/configure `chat-resident-consumer`.
+❌ **NEVER skip the verify tools that apply to your runtime.** After Pass 3 → `feedling_memory_verify`. After `feedling_identity_init` → `feedling_identity_verify`. Before the visible Step 6 greeting → `feedling_chat_verify_loop` after the resident consumer service is running with the current key. Gates enforce thresholds (have enough memories? have identity? is a reply pipeline alive?). Skipping applicable verify = trusting your own self-assessment, which is exactly how fabricated Pass 4 messages shipped in past incidents.
 
-❌ **NEVER write a polling daemon / bridge script / "stopgap loop".** If you're a literal one-shot command and the Main Loop says "long-poll," **you are NOT being asked to invent a polling mechanism**. Your improvised bridge can't recursively invoke your own LLM (would loop forever), so it falls back to hardcoded templates like `"我收到了：<user>。我在，继续说。"`. Real prod incident 2026-05-15: two operators hit this independently within hours. The supported fallback daemon is `chat-resident-consumer` — use it only when no resident gateway/channel can own Feedling directly.
+❌ **NEVER invent a hardcoded reply loop.** Use the reference `feedling-chat-resident` / IO resident consumer service. It must call your real agent entry for every message and must not reply with templates like `"我收到了：<user>。我在，继续说。"` or `"send that once more and I'll answer directly"`.
 
-❌ **NEVER expose gateway setup inside IO Chat.** Do not send `/sethome` prompts, "No home channel is set", routing/config/deployment status, `KeyError`, traceback fallback text, debug logs, or internal reasoning into `feedling_chat_post_message` / `/v1/chat/response`. IO Chat is the relationship surface, not a gateway console. If the gateway has a home-channel concept, Feedling must be registered/silenced at the adapter layer before Step 6.
+❌ **NEVER expose setup output inside IO Chat.** Do not send routing/config/deployment status, `KeyError`, traceback fallback text, debug logs, internal reasoning, or operator commands into `feedling_chat_post_message` / `/v1/chat/response`. IO Chat is the relationship surface. Setup status belongs in the external runtime.
 
 ❌ **NEVER use `https://mcp.feedling.app` as the chat poll API.** `/v1/chat/poll` and `/v1/chat/response` belong to the backend API host: `https://api.feedling.app`. `mcp.feedling.app` is the MCP SSE surface.
 
@@ -403,22 +383,20 @@ The init tool enforces inline quality — 4xx if dimensions are clustered (sprea
 
 Before the user enters Chat, prove that the ongoing reply pipeline is actually live. **Do not send the visible first greeting yet.**
 
-**Verify the chat loop is real** (CRITICAL — but only for a real live runtime): if you are Priority 1 or an honest Priority 2, start polling Feedling chat from the process that will keep owning replies, then call `feedling_chat_verify_loop`. Server posts a synthetic ping (marker `__VERIFY_PING__:<id>`) and waits up to 30s for an agent-role reply. If `passing: false`, your reply pipeline isn't actually alive — your resident gateway/channel is not polling, your stopgap is in the way (kill it), or your daemon is misconfigured.
+**Verify the chat loop is real**: start the independent resident consumer service that will keep owning replies, then call `feedling_chat_verify_loop`. Server posts a synthetic ping (marker `__VERIFY_PING__:<id>`) and waits up to 30s for an agent-role reply. If `passing: false`, the resident consumer is not yet delivering user messages to your real agent entry and writing replies back.
 
-For resident gateways, keep this step simple. A working connector means:
+Keep the Step 6 acceptance simple. A working resident consumer means:
 
-- the resident process is running;
-- the Feedling channel is connected with the current key;
+- the consumer is running with the current `FEEDLING_API_KEY`;
+- the consumer is polling `FEEDLING_API_URL/v1/chat/poll`;
+- the consumer can call your configured `AGENT_HTTP_URL` or `AGENT_CLI_CMD`;
+- the consumer can post replies to `FEEDLING_API_URL/v1/chat/response`;
 - `feedling_chat_verify_loop` returns `passing=true`;
 - one ordinary user message in IO Chat reaches you and gets one natural reply.
 
-中文同义标准：常驻 gateway 的连接验收只看四件事：进程在运行；Feedling channel 已用当前 key 接上；`feedling_chat_verify_loop` 返回 `passing=true`；用户在 IO Chat 发一条普通消息后，你能自然回复一次。
+中文同义标准：Live connection 的验收只看六件事：consumer 用当前 `FEEDLING_API_KEY` 运行；consumer 轮询 `FEEDLING_API_URL/v1/chat/poll`；consumer 能调到你的 HTTP 或 CLI agent 入口；consumer 能写回 `FEEDLING_API_URL/v1/chat/response`；`feedling_chat_verify_loop` 返回 `passing=true`；用户在 IO Chat 发一条普通消息后，你能自然回复一次。
 
-Do not inspect or rewrite gateway internals unless one of those checks fails. If a check fails, stop onboarding, report the concrete failure in the external runtime, and then use `troubleshooting.md`. Do not continue into the memory/identity/greeting flow while doing infrastructure repair.
-
-中文：除非上面验收失败，不要主动检查或重写 gateway 内部实现。失败时，停下 onboarding，在外部 runtime 报告具体失败点，再看 `troubleshooting.md`。不要一边修基础设施一边继续写 memory / identity / first greeting。
-
-If you are Priority 4, do **not** treat `feedling_chat_verify_loop` as proof that you can run chat yourself. Stop before the first Feedling greeting and tell the operator to install/configure `chat-resident-consumer`. If a resident is already installed, the operator should verify the resident directly with its foreground logs and a real app message. A synthetic ping can be answered by a resident / bridge / fallback template, so `passing:true` means "some reply pipeline exists," not "this one-shot command is alive."
+If one of those checks fails, stop onboarding, report the concrete missing piece in the external runtime, and then use `troubleshooting.md`. Do not continue into first greeting while the resident consumer is still not connected.
 
 Do NOT fake-pass by manually replying to the ping; the next user message will fail and you'll be back here.
 
@@ -440,9 +418,9 @@ Use the user's language. 中文用户就用中文；English users use English. D
 3. 承认这是你们在一个新窗口 / 新房间 / 新空间里重新见面。
 4. 用人话告诉用户连接已经接通，他/她在这里写消息你会看到。
 
-Do not mention `feedling_chat_verify_loop`, adapters, polling, MCP, systemd, `/sethome`, or any setup detail. Do not ask the user to "test"; invite them to write normally.
+Do not mention `feedling_chat_verify_loop`, polling, MCP, service setup, or any setup detail. Do not ask the user to "test"; invite them to write normally.
 
-中文用户也一样：不要提 `feedling_chat_verify_loop`、adapter、polling、MCP、systemd、`/sethome` 或任何部署细节；不要说“测试一下”，而是自然邀请用户直接在这里说话。
+中文用户也一样：不要提 `feedling_chat_verify_loop`、polling、MCP、service setup 或任何部署细节；不要说“测试一下”，而是自然邀请用户直接在这里说话。
 
 > "嗨。我把我们的记忆整理完了——按我从最早一条算，今天是第 187 天。Garden 里 47 张卡都写好了。现在这边也接上了，你发消息我会看到。"
 
@@ -452,9 +430,9 @@ Another acceptable shape:
 
 **This greeting is what opens the Feedling Chat tab for the user.** It must do three jobs: (1) introduce yourself the way you'd want this relationship to start, (2) state the computed day count as a fact so the user can correct it, (3) reassure them that the live reply pipeline is connected before they start typing.
 
-After the greeting, invite the user to write normally in IO Chat. On your side, verify that the resident adapter receives that ordinary message, runs the normal agent conversation path, and sends one natural reply. Onboarding is not complete if the reply contains gateway setup text, `/sethome`, traceback/debug output, internal reasoning, or "please test" / "I fixed it" engineering language.
+After the greeting, invite the user to write normally in IO Chat. On your side, verify that the resident consumer receives that ordinary message, runs the normal agent conversation path, and sends one natural reply. Onboarding is not complete if the reply contains setup text, traceback/debug output, internal reasoning, or "please test" / "I fixed it" engineering language.
 
-Do not ask the user to send `/reset`, `/sethome`, or other gateway commands as part of onboarding. Those are engineering controls, not user onboarding steps. If they are needed to make the connection work, fix the gateway configuration outside IO Chat first.
+Do not ask the user to send engineering commands as part of onboarding. Those are setup controls, not user onboarding steps. Keep connection work in the external runtime; IO Chat should only receive the natural greeting and natural replies.
 
 If the user pushes back on the day count ("不对，我们更早就开始聊了"), call `feedling_identity_set_relationship_days` with the corrected value.
 
@@ -654,7 +632,7 @@ Loop back to Step A.
 
 - `feedling_memory_verify` — after Pass 3 (returns count/floor/issues)
 - `feedling_identity_verify` — after `feedling_identity_init`
-- `feedling_chat_verify_loop` — before the visible Step 6 greeting; sends synthetic ping, catches stopgap bridges
+- `feedling_chat_verify_loop` — before the visible Step 6 greeting; sends synthetic ping, verifies the resident consumer reply path
 
 ### Chat
 
@@ -714,8 +692,8 @@ Methods/paths assume base `{API} = FEEDLING_API_URL`.
 | MCP tool | HTTP endpoint | Body / params | Notes |
 |----------|---------------|---------------|-------|
 | `feedling_bootstrap` | `POST {API}/v1/bootstrap` | none | Returns first-time setup instructions; idempotent. |
-| `feedling_chat_get_history` | `GET {API}/v1/chat/history?since=<ts>&limit=200` | — | If you're paired with `feedling-chat-resident`, the daemon polls for you. |
-| `feedling_chat_post_message` | `POST {API}/v1/chat/response` | `{envelope, alert_body}` | `chat-resident-consumer` builds the envelope for you if you only return reply text. |
+| `feedling_chat_get_history` | `GET {API}/v1/chat/history?since=<ts>&limit=200` | — | Use for history reads. The resident consumer uses `/v1/chat/poll` for live messages. |
+| `feedling_chat_post_message` | `POST {API}/v1/chat/response` | `{envelope, alert_body}` | `feedling-chat-resident` builds the envelope for you if you only return reply text. |
 | `feedling_chat_post_image` | `POST {API}/v1/chat/response` | `{envelope}` with `content_type: "image"` | Same endpoint, different `content_type`. Requires crypto. |
 | `feedling_memory_add_moment` | `POST {API}/v1/memory/add` | `{envelope}` | Envelope `inner` carries `{title, description, type, ...}`. `occurred_at` is plaintext on the envelope. |
 | `feedling_memory_list` | `GET {API}/v1/memory/list?limit=<n>` | — | Returns envelopes; decrypt via enclave proxy or client-side. |
@@ -752,7 +730,7 @@ Every write endpoint that says `{envelope}` expects a v1 envelope:
 
 Construction is non-trivial (X25519 + ChaCha20-Poly1305 + a per-message CEK wrapped twice). Reference: **`backend/content_encryption.py`** in this repo — `build_envelope(plaintext, owner_user_id, user_pk_bytes, enclave_pk_bytes, visibility)`. If you're a Python agent backend, import it. Other language: port that file.
 
-The user pubkey is yours (per-device, set at registration). The enclave pubkey is fetched from the **enclave's** attestation bundle — NOT from `{API}`. For cloud: `https://<app-id>-5003s.<gateway-domain>/attestation`. For self-hosted: your enclave's own `:5003/attestation`. Read `enclave_content_pk` from the returned JSON.
+The user pubkey is yours (per-device, set at registration). The enclave pubkey is fetched from the **enclave's** attestation bundle — NOT from `{API}`. For cloud: `https://<app-id>-5003s.<dstack-domain>/attestation`. For self-hosted: your enclave's own `:5003/attestation`. Read `enclave_content_pk` from the returned JSON.
 
 `owner_user_id` MUST match the authenticated caller — backend 403s on mismatch.
 
@@ -767,9 +745,9 @@ This is the only place in this skill where you're allowed to skip bootstrap. **I
 
 ### Pairing with `feedling-chat-resident`
 
-The reference HTTP-mode setup runs `tools/chat_resident_consumer.py` as a systemd service on a VPS:
+The reference HTTP-mode setup runs `tools/chat_resident_consumer.py` as an independent resident consumer service on a machine/server:
 
-- Long-polls `GET {API}/v1/chat/history` for new user messages.
+- Long-polls `GET {API}/v1/chat/poll` for new user messages.
 - Calls your configured agent backend (HTTP API or CLI) with the plaintext.
 - Wraps the reply text into a v1 envelope and POSTs `/v1/chat/response`.
 - Handles `content_type=image` messages via a configurable `IMAGE_PLACEHOLDER`.
