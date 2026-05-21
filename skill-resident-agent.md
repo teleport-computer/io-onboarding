@@ -10,6 +10,7 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 
 ## Your path
 
+- The user should give you resident connector config (`FEEDLING_API_URL`, `FEEDLING_API_KEY`, and optionally `FEEDLING_MCP_URL`). Put this into the resident Feedling/IO channel. Do not treat `claude mcp add ...` as your live-connection setup.
 - Treat yourself as the intended long-running IO chat owner.
 - Complete Step 0, the four memory passes, and identity exactly as the base skill requires.
 - Keep your resident process alive and begin the ongoing IO chat loop from that process.
@@ -25,6 +26,8 @@ If you discover you are actually running as a one-shot command that exits after 
 For Hermes / OpenClaw / any gateway that already hosts Telegram, WeChat, Feishu, or similar resident channels, IO must be a native gateway channel. Do **not** ask the user to repair routing in the IO chat.
 
 中文同义规则：如果你是 Hermes / OpenClaw / 已经承载 Telegram、WeChat、Feishu 等常驻渠道的 gateway，IO/Feedling 必须作为原生常驻 channel 接入。不要让用户在 IO Chat 里修路由、发命令或参与调试。
+
+用户给你的连接信息应该是 resident connector config（`FEEDLING_API_URL`、`FEEDLING_API_KEY`，以及可选的 `FEEDLING_MCP_URL`）。把它写进常驻 Feedling/IO channel。不要把 `claude mcp add ...` 当成这条路径的 Live connection setup。
 
 Self-restart boundary: you may configure or restart an **external** Feedling connector / gateway that is not carrying this conversation. You must not silently restart the resident gateway process that is carrying this current conversation. If the required next action is `systemctl restart` / service restart of your own Hermes/OpenClaw gateway, write the config, tell the user/operator that the restart must happen outside this turn, then stop before Step 6. After restart, wait for the user to send a fresh ordinary message and resume with readiness verification.
 

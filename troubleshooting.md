@@ -128,14 +128,14 @@ iOS 上的信号：进度条里 "Chat loop" 那一行显示 `send a message →`
 
 **含义**：Settings → Delete Account & Reset 把服务端账号删了、本地凭据清了、并注册了一个新账号；但你的 agent runtime（Claude.ai / Claude Desktop / Hermes / 等）里还 pin 着旧 key——旧 key 对应的 user 已经不存在了，所以所有 `tools/call` 都 401。
 
-iOS 上的信号：reset 完成时会弹出 "Your old key is dead." 的 sheet，里面有新的 MCP String 和一个 COPY 按钮。如果你当时点了 "I'll update later"，现在去 Settings → Storage 重新拿。
+iOS 上的信号：reset 完成时会弹出 "Your old key is dead." 的 sheet，里面有新的重新连接信息和一个 COPY 按钮。如果你当时点了 "I'll update later"，现在回到 Chat onboarding 或 Settings → Storage 重新拿。
 
 **修法：**
 
-1. iOS app → Settings → Storage → 找 "MCP String" 那一行 → COPY。
-2. 把旧的 MCP 配置删掉，paste 新的：
-   - **Claude Code / Claude.ai / Claude Desktop**：先 `claude mcp remove feedling`，然后把复制到的 `claude mcp add feedling …` 跑一遍。
-   - **Hermes / OpenClaw / 自己起的 resident**：编辑 env 文件，把 `FEEDLING_API_KEY` 换成新 key，然后 `sudo systemctl restart feedling-chat-resident`（或你对应的服务名）。
+1. iOS app → Chat onboarding → 按路径复制连接信息。
+2. 把旧配置换成新的：
+   - **Claude Code / Claude.ai / Claude Desktop / ChatGPT / Gemini 这类聊天工具**：先移除旧 feedling MCP，再 paste 新的 `claude mcp add feedling …` 或等价 MCP URL。
+   - **Hermes / OpenClaw / 自己起的 resident**：不要用 `claude mcp add`；编辑 resident Feedling/IO channel env/config，把 `FEEDLING_API_KEY` 换成新 key，并确认 `FEEDLING_API_URL=https://api.feedling.app`。如果需要重启，重启对应外部 resident service（或你对应的服务名）。
 3. 让 agent 重连，再发一条消息。它的 `feedling_bootstrap` 这次会返回 `first_time`——新账号是空的，让它重走 bootstrap。
 
 **注意：** 旧账号的 chat / identity / memory garden 已经在服务端被删除了，找不回来。如果你只想轮换 key 但保留数据，**不要**用 Delete Account & Reset，用 Settings → Storage → "Regenerate API Key"。
@@ -323,14 +323,14 @@ If you're on the Keychain-fix build (commit `ee6bd78` or later) this shouldn't r
 
 **Meaning**: Settings → Delete Account & Reset deleted your account server-side, wiped local credentials, and auto-registered a fresh account — but your agent runtime (Claude.ai / Claude Desktop / Hermes / etc.) is still pinned to the OLD key. The old user no longer exists, so every `tools/call` returns 401.
 
-iOS signal: when reset finishes, a "Your old key is dead." sheet appears with the new MCP String and a COPY button. If you tapped "I'll update later," grab it again from Settings → Storage.
+iOS signal: when reset finishes, a "Your old key is dead." sheet appears with fresh reconnection details and a COPY button. If you tapped "I'll update later," grab them again from Chat onboarding or Settings → Storage.
 
 **Fix:**
 
-1. iOS app → Settings → Storage → find the "MCP String" row → COPY.
-2. Remove the old MCP config and paste the new one:
-   - **Claude Code / Claude.ai / Claude Desktop**: run `claude mcp remove feedling`, then paste the copied `claude mcp add feedling …` line.
-   - **Hermes / OpenClaw / self-hosted resident**: edit your env file, replace `FEEDLING_API_KEY` with the new key, then `sudo systemctl restart feedling-chat-resident` (or whatever your service is called).
+1. iOS app → Chat onboarding → copy the path-specific connection details.
+2. Replace the old config with the new one:
+   - **Claude Code / Claude.ai / Claude Desktop / ChatGPT / Gemini-style chat tools**: remove the old feedling MCP config, then paste the new `claude mcp add feedling …` line or equivalent MCP URL.
+   - **Hermes / OpenClaw / self-hosted resident**: do not use `claude mcp add`; edit the resident Feedling/IO channel env/config, replace `FEEDLING_API_KEY`, and confirm `FEEDLING_API_URL=https://api.feedling.app`. If restart is required, restart the corresponding external resident service.
 3. Reconnect the agent and send a message. Its next `feedling_bootstrap` will return `first_time` — the new account is empty; let it re-walk the bootstrap flow.
 
 **Note:** The old account's chat / identity / memory garden was deleted server-side and can't be recovered. If you want to rotate the key without losing data, **don't** use Delete Account & Reset — use Settings → Storage → "Regenerate API Key" instead.

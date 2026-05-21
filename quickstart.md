@@ -11,7 +11,7 @@ Get IO running on your phone, with your own AI agent inside, with your shared hi
 ### 你需要什么
 
 - 一台 iPhone（iOS 16.2 或更高）
-- 一个支持 MCP 的 agent 客户端（Claude Code / Claude Desktop / Hermes / 其他）
+- 一个 agent runtime（Hermes / OpenClaw / Claude Desktop / ChatGPT / Gemini / 其他）
 - **重要**：跟你 agent 已经有过实质对话历史的账号——bootstrap 的核心是从你们的对话史里抢救记忆。**新开一个空账号没意义**。
 - 整段不被打断的 30–60 分钟（不是 5 分钟。后面会解释为什么）
 
@@ -21,13 +21,13 @@ Get IO running on your phone, with your own AI agent inside, with your shared hi
 
 通过 TestFlight 邀请链接安装。打开后 app 自动注册账号，不用你做什么——等几秒进入 Chat 页面。
 
-**2. 拿到 MCP 连接字符串**
+**2. 在 Chat onboarding 里选择路径并复制连接信息**
 
-打开 app → Settings → 找到 `MCP String` 行，点 `COPY ↗`。形如：
+打开 app → Chat。先选 TA 从哪里来：
 
-```
-claude mcp add feedling --transport sse "https://mcp.feedling.app/sse?key=…"
-```
+- **TA 在我的机器上**：Hermes / OpenClaw / 一台一直开着的 Mac 或 server。复制 `常驻连接配置`，形如 `FEEDLING_API_URL` / `FEEDLING_API_KEY` / `FEEDLING_MCP_URL`。这不是 `claude mcp add` 命令。
+- **TA 在聊天工具里**：Claude / ChatGPT / Gemini / Cursor 等。复制 `MCP 连接`，形如 `claude mcp add feedling --transport sse "https://mcp.feedling.app/sse?key=…"`。
+- **我不确定**：复制连接信息，让 TA 先判断自己属于哪条路径，再只使用对应的那一段。
 
 **3. 给你的 agent 发开场指令**
 
@@ -59,8 +59,8 @@ bootstrap 的最后顺序必须是：先建立 Live connection，再发第一条
 - 只有当你确认自己真的只是每轮调用后会退出的命令、且没有 resident gateway/channel 可用时，才停下，告诉我需要安装 `chat-resident-consumer` 来接管长期轮询。
 - Live connection 接通后，再发第一条自然问候，告诉我记忆和身份已经写好、你算出的天数、以及我现在发消息你会看到。之后等我发一条普通消息，并自然回复一次，才算完成。
 
-最后连下面这个 MCP server：
-[粘贴第 2 步复制的 MCP String]
+最后使用下面这份连接信息：
+[粘贴第 2 步复制的连接信息。Hermes / OpenClaw resident 用 FEEDLING_* 配置；Claude / ChatGPT / Gemini 这类聊天工具才用 claude mcp add。]
 ```
 
 **4. 等（30–60 分钟）**
@@ -99,7 +99,7 @@ Agent 会先做 4 轮记忆提取——**深度记录你们的所有过往瞬间
 ### What you need
 
 - An iPhone (iOS 16.2 or higher)
-- An MCP-capable agent client (Claude Code / Claude Desktop / Hermes / other)
+- An agent runtime (Hermes / OpenClaw / Claude Desktop / ChatGPT / Gemini / other)
 - **Important**: an account that has real conversation history with your agent — bootstrap is about salvaging that history into IO. A fresh empty account defeats the point.
 - 30–60 uninterrupted minutes for the first run (not 5 minutes — explained below)
 
@@ -109,13 +109,13 @@ Agent 会先做 4 轮记忆提取——**深度记录你们的所有过往瞬间
 
 Install via the TestFlight invite. On first launch IO auto-registers an account; nothing for you to do — wait a few seconds for the Chat tab.
 
-**2. Grab the MCP connection string**
+**2. Pick the path in Chat onboarding and copy the connection details**
 
-Open the app → Settings → find the `MCP String` row, tap `COPY ↗`. It looks like:
+Open the app → Chat. First choose where he is coming from:
 
-```
-claude mcp add feedling --transport sse "https://mcp.feedling.app/sse?key=…"
-```
+- **On my machine**: Hermes / OpenClaw / an always-on Mac or server. Copy the `resident config`, which looks like `FEEDLING_API_URL` / `FEEDLING_API_KEY` / `FEEDLING_MCP_URL`. This is not a `claude mcp add` command.
+- **In a chat app**: Claude / ChatGPT / Gemini / Cursor, etc. Copy the `MCP connection`, which looks like `claude mcp add feedling --transport sse "https://mcp.feedling.app/sse?key=…"`.
+- **I'm not sure**: copy the connection info and let him identify the right path first, then use only the matching block.
 
 **3. Send your agent the opening prompt**
 
@@ -162,8 +162,8 @@ the first visible Feedling Chat greeting.
   you will now see my messages. Then wait for one normal message from me and
   reply naturally once; that final real chat reply completes onboarding.
 
-Finally, connect this MCP server:
-[paste the MCP String from step 2]
+Finally, use these connection details:
+[paste the connection details from step 2. Hermes / OpenClaw residents use the FEEDLING_* config; Claude / ChatGPT / Gemini-style chat tools use claude mcp add.]
 ```
 
 **4. Wait (30–60 min)**
