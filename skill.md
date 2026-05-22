@@ -41,6 +41,7 @@ Use the path that honestly fits your runtime:
 
 - Use this for Hermes / OpenClaw, Claude Code on a Mac mini or VPS, an always-on agent loop, or any agent that can expose a local HTTP or CLI entry.
 - Configure `feedling-chat-resident` / IO resident consumer with the user's `FEEDLING_API_URL`, `FEEDLING_API_KEY`, and optional `FEEDLING_MCP_URL` / `FEEDLING_MCP_KEY`. `FEEDLING_MCP_URL` is the MCP base URL, not a `claude mcp add ...` command.
+- Install or update the official consumer code from `https://github.com/teleport-computer/feedling-mcp` before starting the service. Existing checkouts must fast-forward to `origin/main`; dirty or non-official checkouts should be replaced by a fresh checkout. The service `WorkingDirectory` and `ExecStart` must point at that current checkout, and your external setup report should include local HEAD plus `origin/main`.
 - Fill in the agent entry from your own runtime, not from the user:
   - HTTP only if your runtime exposes a real resident endpoint that reaches your actual agent session. In that case set `AGENT_MODE=http` and set `AGENT_HTTP_URL` to the URL you expose from your own runtime.
 - For Hermes' API server, use OpenAI-compatible mode: `AGENT_MODE=http`, `AGENT_HTTP_PROTOCOL=openai`, `AGENT_HTTP_URL=http://127.0.0.1:<port>/v1/chat/completions`. The consumer preserves `X-Hermes-Session-Id` / `X-Hermes-Session-Key`.
@@ -54,6 +55,7 @@ Use the path that honestly fits your runtime:
   - `POST FEEDLING_API_URL/v1/chat/response`
   - repeat
 - Complete Step 0, the four memory passes, and identity setup through your external runtime conversation with the user. Before Step 6, verify that the resident consumer is running and `feedling_chat_verify_loop` returns `passing=true`.
+- Treat a stale consumer checkout as a failed Live connection even if polling works. If GitHub has newer `tools/chat_resident_consumer.py` code than the service is running, update the checkout and restart only `feedling-chat-resident` before Step 6.
 
 ### Path 2 — Chat-product MCP client
 
