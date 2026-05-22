@@ -2,11 +2,12 @@
 
 Give your AI agent a body on your iPhone.
 
-IO lets the AI you already use — Claude Code, Claude Desktop, Hermes, or another
-MCP-capable client — read your screen, push to your lock screen, and keep an
-identity card + memory garden of what it knows about you. Ongoing chat is owned
-by an independent resident consumer service when the agent needs a machine or
-server process to keep listening after bootstrap.
+IO lets the AI you already use — Claude Code, Claude Desktop, Hermes,
+OpenClaw, ChatGPT, Gemini, or another agent runtime — read your screen,
+push to your lock screen, and keep an identity card + memory garden of what
+it knows about you. Ongoing chat is owned by an independent resident consumer
+service when the agent needs a machine or server process to keep listening
+after bootstrap.
 
 This repo is the public onboarding package for IO testers. **The iOS app and
 the IO server live elsewhere.** Everything here is just docs.
@@ -21,8 +22,8 @@ the IO server live elsewhere.** Everything here is just docs.
 |------|----------|------|
 | **[quickstart.md](./quickstart.md)** | 5 步把 IO 装好、连上 agent | 你（测试者） |
 | **[troubleshooting.md](./troubleshooting.md)** | 卡住的时候的排错指南 | 你（测试者） |
-| **[skill.md](./skill.md)** | 共同底座：记忆、身份、硬规则 | 你的 AI |
-| **[skill-resident-agent.md](./skill-resident-agent.md)** | Hermes / OpenClaw / 自己机器上的常驻 AI | 你的 AI |
+| **[skill.md](./skill.md)** | 共同底座：记忆、身份、连接原则 | 你的 AI |
+| **[skill-resident-agent.md](./skill-resident-agent.md)** | Hermes / OpenClaw / 自己机器或 server 上的常驻 AI | 你的 AI |
 | **[skill-chat-client.md](./skill-chat-client.md)** | Claude / ChatGPT / Gemini 等聊天产品 | 你的 AI |
 | **[skill-api.md](./skill-api.md)** | 自定义 API 路线（开发者） | 你的 AI |
 | **[skill-guide.md](./skill-guide.md)** | 不确定时先辨认路线 | 你的 AI |
@@ -49,8 +50,8 @@ the IO server live elsewhere.** Everything here is just docs.
 |------|---------|----------|
 | **[quickstart.md](./quickstart.md)** | 5-step setup — install + connect your agent | You (the tester) |
 | **[troubleshooting.md](./troubleshooting.md)** | Common failure modes + fixes | You (the tester) |
-| **[skill.md](./skill.md)** | Shared base: memory, identity, hard rules | Your AI |
-| **[skill-resident-agent.md](./skill-resident-agent.md)** | Hermes / OpenClaw / your own always-running AI | Your AI |
+| **[skill.md](./skill.md)** | Shared base: memory, identity, connection principles | Your AI |
+| **[skill-resident-agent.md](./skill-resident-agent.md)** | Hermes / OpenClaw / always-running AI on your machine or server | Your AI |
 | **[skill-chat-client.md](./skill-chat-client.md)** | Claude / ChatGPT / Gemini-style chat products | Your AI |
 | **[skill-api.md](./skill-api.md)** | Custom API path (developer) | Your AI |
 | **[skill-guide.md](./skill-guide.md)** | Identify the right path when unsure | Your AI |
