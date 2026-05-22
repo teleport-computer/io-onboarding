@@ -97,7 +97,7 @@ iOS 上的信号：进度条里 "Chat loop" 那一行显示 `send a message →`
 - **resident consumer 没跑起来**——确认 `feedling-chat-resident` / IO resident consumer service 当前正在运行，并且使用的是这一次 onboarding 的 `FEEDLING_API_KEY`。
 - **consumer 没有轮询正确 API**——日志应该看到 `GET https://api.feedling.app/v1/chat/poll` 或自托管 API 的同等路径。
 - **API URL 配错**——`/v1/chat/poll` 必须走 `https://api.feedling.app`。如果日志里是 `https://mcp.feedling.app/v1/chat/poll`，就是错的；`mcp.feedling.app` 只用于 MCP SSE。
-- **agent 入口没配置好**——HTTP 模式只适合真实 resident HTTP endpoint；Hermes API server 要用 `AGENT_HTTP_PROTOCOL=openai` + `/v1/chat/completions`。没有真实 HTTP endpoint 时用 CLI；Hermes / OpenClaw 默认 `AGENT_CLI_CMD=hermes chat -Q --source tool --max-turns 4 -q "{message}"`，consumer 会保存 `session_id` 并用 `--resume` 续接。consumer 必须能用同一个环境调用到真实 agent，而不是只在手动 shell 里能跑。
+- **agent 入口没配置好**——HTTP 模式只适合真实 resident HTTP endpoint；Hermes API server 要用 `AGENT_HTTP_PROTOCOL=openai` + `/v1/chat/completions`。没有真实 HTTP endpoint 时用 CLI；Hermes / OpenClaw 默认设置 `HERMES_HOME=<真实常驻 agent 的同一个 profile>`，并用 `AGENT_CLI_CMD=hermes chat -Q --source tool --max-turns 60 -q "{message}"`，consumer 会保存 `session_id` 并用 `--resume` 续接。consumer 必须能用同一个环境调用到真实 agent，而不是只在手动 shell 里能跑；也不要把 `{message}` 包进一段新人格 prompt。
 - **CLI PATH / venv 不一致**——手动运行 `hermes` 或其他命令成功，不代表 resident service 里也能找到它。把 `AGENT_CLI_CMD` 写成绝对路径，或在 service env 里写明 PATH / venv。
 - **消息解密失败**——日志如果出现 `user message has no plaintext content`，确认 `FEEDLING_MCP_URL` 或等价解密来源已配置，且当前 key 可用。
 - **图片看不到**——图片消息的文本内容本来就是空的，JPEG 在 `image_b64`。新版 `feedling-chat-resident` 会把图片作为 OpenAI `image_url`、simple HTTP `images[]`，或 CLI 本地图片路径传给 agent。确认正在运行的是新版 consumer；CLI runtime 还要确认它能打开本地图片路径，必要时在 `AGENT_CLI_CMD` 中使用 `{image_path}` / `{image_paths}`。
@@ -258,11 +258,13 @@ agent's HTTP or CLI entry, then POSTs the reply to
   HTTP endpoint. Hermes API server uses `AGENT_HTTP_PROTOCOL=openai` plus
   `/v1/chat/completions`. Without a real HTTP endpoint, use CLI; for
   Hermes / OpenClaw, default to
-  `AGENT_CLI_CMD=hermes chat -Q --source tool --max-turns 4 -q "{message}"`. The consumer
+  `HERMES_HOME=<the same profile used by the real resident agent>` plus
+  `AGENT_CLI_CMD=hermes chat -Q --source tool --max-turns 60 -q "{message}"`. The consumer
   stores `session_id` and resumes later turns with `--resume`. It must be able
   to call the real agent from its own environment.
 - **CLI PATH / venv mismatch** — a command working in an interactive shell does
-  not guarantee the resident service can find it. Use absolute paths or set the
+  not guarantee the resident service can find it. Do not wrap `{message}` in a
+  new persona prompt. Use absolute paths or set the
   service PATH / venv explicitly.
 - **Decryption failed** — if logs say `user message has no plaintext content`,
   configure `FEEDLING_MCP_URL` or the equivalent decrypt source with the current
