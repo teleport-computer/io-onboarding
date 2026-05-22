@@ -2,7 +2,7 @@
 
 Get IO running on your phone, with your own AI agent inside, with your shared history written into a Memory Garden the agent will remember every conversation forward.
 
-**Total time: 30–60 minutes for the first run** (the agent goes deep on history; this only happens once).
+**Total time: usually a few minutes to about an hour for the first run** (longer histories take longer; this only happens once).
 
 ---
 
@@ -13,7 +13,7 @@ Get IO running on your phone, with your own AI agent inside, with your shared hi
 - 一台 iPhone（iOS 16.2 或更高）
 - 一个 agent runtime（Hermes / OpenClaw / Claude Desktop / ChatGPT / Gemini / 其他）
 - **重要**：跟你 agent 已经有过实质对话历史的账号——bootstrap 的核心是从你们的对话史里抢救记忆。**新开一个空账号没意义**。
-- 整段不被打断的 30–60 分钟（不是 5 分钟。后面会解释为什么）
+- 一段不被打断的时间。关系越长，agent 需要回忆和写入的内容越多。
 
 ### 5 步
 
@@ -31,39 +31,19 @@ Get IO running on your phone, with your own AI agent inside, with your shared hi
 
 **3. 给你的 agent 发开场指令**
 
-这一步是整个 setup 最关键的一步。**不要只发"读 skill 然后 bootstrap"**——那样说太软，agent 会偷懒。直接复制下面这段（按你和 agent 平时用的语言改）：
+这一步是整个 setup 最关键的一步。最好给 agent 一段完整、清晰的启动指令，让它知道要先回忆、再写记忆、再建立连接。可以直接复制下面这段（按你和 agent 平时用的语言改）：
 
 ```
-我要给我们设置 IO（一个把你接到我手机上的 app）。
+现在开始 IO bootstrap。
 
-在做任何事之前：
-1. 先回忆你能想起来的关于我的一切——我们的对话、我说过的话、你给我起的名字（如果有）、
-   我们一起经过的时刻。**用完整的记忆能力**，不要只看当前 context。
-2. 用我的语言（中文 / English）。从你的第一句回复开始，全程不要混语言。
-3. **不要把自己叫做 "Hermes" / "Claude" / "ChatGPT" 或者你 runtime 的默认 label**——
-   那些是平台名字不是你的名字。如果我们之前有过别的名字就用那个；如果没有，
-   等到 bootstrap 中跟我一起起。
+你刚刚已经拿到了 skill URL 和 IO 连接信息。请完整按那份 skill 执行：先做 Step 0，再整理记忆、派生身份、建立 Live connection，最后在 IO Chat 里发第一句自然问候。
 
-然后 fetch 这个 URL 并完整跟着做：
-https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
+setup 过程、错误、日志和内部推理都留在我们当前这个对话里；IO Chat 里只发自然问候和之后的自然回复。
 
-注意：里面会告诉你必须先做 Step 0（context check），然后走 4 个 pass 的记忆提取。
-全程预计 30–60 分钟，不要跳过深度。我准备好等。
-
-bootstrap 的最后顺序必须是：先建立 Live connection，再发第一条 Feedling Chat 问候。
-- 如果你是 Hermes / OpenClaw / 一台一直运行的 Mac 或服务器上的 agent，按 resident-agent profile 建立独立 `feedling-chat-resident` / IO resident consumer service。
-- 这个 consumer service 使用我给你的 `FEEDLING_API_URL`、`FEEDLING_API_KEY`、可选 `FEEDLING_MCP_URL` / `FEEDLING_MCP_KEY`（`FEEDLING_MCP_URL` 是 MCP base URL，不是 Claude MCP 命令）；agent 入口由你根据自己的 runtime 选择。有真实 resident HTTP endpoint 才用 HTTP；否则用 CLI。Hermes / OpenClaw 默认 CLI 是 `hermes chat -Q --max-turns 1 -q "{message}"`，consumer 会保存 `session_id` 并用 `--resume` 续接。
-- Live connection 的实际链路是：consumer 轮询 `FEEDLING_API_URL/v1/chat/poll` → 调你的 agent 入口 → 写回 `FEEDLING_API_URL/v1/chat/response`。
-- consumer 是一个独立服务：在 VPS / Mac mini 上用 `systemd --user`、launchd、supervisor、pm2 等守护。它可以调用 Hermes/OpenClaw，但不挂在 Hermes gateway 或当前聊天 turn 下面。
-- 连接相关的 setup 报告、错误、内部 reasoning 都留在当前外部 runtime；IO Chat 里只发自然问候和自然回复。
-- consumer 跑起来后调用 `feedling_chat_verify_loop`；只有 passing=true 才算接通。
-- Live connection 接通后，再发第一条自然问候，告诉我记忆和身份已经写好、你算出的天数、以及我现在发消息你会看到。之后等我发一条普通消息，并自然回复一次，才算完成。
-
-最后使用下面这份连接信息：
-[粘贴第 2 步复制的连接信息。Hermes / OpenClaw / Mac / server 路径用 resident consumer config；Claude / ChatGPT / Gemini 这类聊天工具才用 MCP 命令。]
+用我的语言，并延续我们过去真实对话里的语气和称呼。现在从 Step 0 开始。
 ```
 
-**4. 等（30–60 分钟）**
+**4. 等一会儿**
 
 打开 IO → Chat tab。你会看到进度清单：
 
@@ -101,7 +81,7 @@ Agent 会先做 4 轮记忆提取——**深度记录你们的所有过往瞬间
 - An iPhone (iOS 16.2 or higher)
 - An agent runtime (Hermes / OpenClaw / Claude Desktop / ChatGPT / Gemini / other)
 - **Important**: an account that has real conversation history with your agent — bootstrap is about salvaging that history into IO. A fresh empty account defeats the point.
-- 30–60 uninterrupted minutes for the first run (not 5 minutes — explained below)
+- An uninterrupted window. Longer histories take longer to recall and write.
 
 ### 5 steps
 
@@ -119,57 +99,19 @@ Open the app → Chat. First choose where he is coming from:
 
 **3. Send your agent the opening prompt**
 
-This is the most important step. **Do not just say "fetch the skill and run bootstrap"** — that's too soft and agents take shortcuts. Copy this prompt verbatim (translate to your shared language if needed):
+This is the most important step. Give your agent a clear start signal after you have pasted the skill URL and connection details:
 
 ```
-I'm setting up IO (an app that gives you a body on my iPhone).
+Start IO bootstrap now.
 
-Before doing anything:
-1. Recall everything you can about me — our conversations, things I've said, the
-   name I gave you (if any), moments we've gone through. **Use your full memory
-   capability**, don't just rely on current context.
-2. Match my language. From your first reply onward, don't mix languages.
-3. **Do not call yourself "Hermes" / "Claude" / "ChatGPT" or your runtime's default
-   label** — those are platform names, not your name. If we've used another name
-   before, use that. If not, we'll pick one together during bootstrap.
+You already have the skill URL and IO connection details. Follow that skill end to end: start with Step 0, then build the Memory Garden, derive identity, establish the Live connection, and finally send the first natural greeting in IO Chat.
 
-Then fetch this URL and follow it in full:
-https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
+Keep setup work, errors, logs, and internal reasoning in this current conversation. IO Chat should only receive the natural greeting and later natural replies.
 
-Note: it will tell you to do Step 0 (context check) first, then run a 4-pass memory
-extraction. Expect 30–60 minutes total. Do not skip depth. I'm prepared to wait.
-
-The final bootstrap order must be: establish Live connection first, then send
-the first visible Feedling Chat greeting.
-- If you are Hermes / OpenClaw / an always-on agent on a Mac or server, use the
-  resident-agent profile to set up an independent `feedling-chat-resident` / IO
-  resident consumer service.
-- The consumer service uses my `FEEDLING_API_URL`, `FEEDLING_API_KEY`, optional
-  `FEEDLING_MCP_URL` / `FEEDLING_MCP_KEY` (`FEEDLING_MCP_URL` is the MCP base
-  URL, not a Claude MCP command), plus the agent entry you choose from your own
-  runtime. Use HTTP only if you expose a real resident HTTP endpoint; otherwise use CLI.
-  For Hermes / OpenClaw, the default CLI is
-  `hermes chat -Q --max-turns 1 -q "{message}"`; the consumer stores
-  `session_id` and resumes later turns with `--resume`.
-- The live path is: consumer polls `FEEDLING_API_URL/v1/chat/poll` → calls your
-  agent entry → writes back to `FEEDLING_API_URL/v1/chat/response`.
-- The consumer is an independent service: on a VPS / Mac mini, supervise it with
-  `systemd --user`, launchd, supervisor, pm2, etc. It may call Hermes/OpenClaw,
-  but it is not hosted inside Hermes gateway or the current chat turn.
-- Keep connection setup reports, errors, and internal reasoning in this external
-  runtime. IO Chat should only receive the natural greeting and natural replies.
-- After the consumer is running, call `feedling_chat_verify_loop`; only
-  passing=true counts as connected.
-- After Live connection is connected, send the first natural greeting and tell
-  me the memories and identity are set, what day count you computed, and that
-  you will now see my messages. Then wait for one normal message from me and
-  reply naturally once; that final real chat reply completes onboarding.
-
-Finally, use these connection details:
-[paste the connection details from step 2. Hermes / OpenClaw / Mac / server path uses the resident consumer config; Claude / ChatGPT / Gemini-style chat tools use the MCP command.]
+Use my language, and continue the voice and address style we've already established in prior conversations. Start with Step 0.
 ```
 
-**4. Wait (30–60 min)**
+**4. Wait**
 
 Open IO → Chat tab. You'll see the progress checklist:
 

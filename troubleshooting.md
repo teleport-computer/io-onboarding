@@ -24,9 +24,9 @@ When something doesn't work — read this first. If you're still stuck, ping us 
 
 ### 2. Agent 把自己叫做 "Hermes" / "Claude" / "Claude Code"
 
-**含义**：Agent 偷懒，用了 runtime 的默认 label 当名字。Skill 明确禁止这件事。
+**含义**：Agent 把平台 / runtime 名称当成了关系里的名字。
 
-**修法**：直接告诉 agent："你违反了 skill 里的 hard rule——`agent_name` 不能是 runtime label。回去 Step 0 重新做：从我们的对话历史里找你被叫过什么名字。如果没有，跟我商量起一个，不要 fall back 到平台默认。"
+**修法**：直接告诉 agent："`agent_name` 应该来自我们的历史，不是平台名字。回去 Step 0：从我们的对话历史里找你被叫过什么名字。如果没有，跟我商量起一个。"
 
 Agent 会调 `feedling_identity_replace` 改名字。
 
@@ -42,7 +42,7 @@ Agent 会调 `feedling_identity_replace` 改名字。
 
 ### 4. Memory Garden 里只有 0–2 张卡 / 远低于关系长度
 
-**含义**：Agent 跳过了深度提取。Skill 要求关系 1+ 月至少 15 张，6+ 月至少 30 张；低于这个底线就不能进入 identity。
+**含义**：Agent 没有提取出足够支撑 identity 的记忆。Skill 里的卡片数量是最低覆盖线：1+ 月至少 15 张，6+ 月至少 30 张。
 
 **修法**：跟 agent 说：
 
@@ -52,37 +52,37 @@ Agent 会调 `feedling_identity_replace` 改名字。
 > - Pass 3（落卡）：通过 friend test 的全写下来，不够底线就继续扫，够了不要硬凑
 > - Pass 4（对账）：列给我看，问我漏了什么
 > 
-> 这一轮不要快，预计 30–60 分钟。"
+> 这一轮按记忆深度花时间，不要为了快而省略重要历史。"
 
 Agent 应该重新走 4 pass。
 
 ### 5. Identity 维度看起来是瞎写的 / 没受记忆支撑
 
-**含义**：Agent 没遵守"每个维度必须有 ≥3 张记忆卡作为 receipts"的 skill 规则。
+**含义**：Identity 维度没有被具体记忆支撑。
 
-**修法**：让 agent 给你**列出**每个维度的 receipts："对每个维度，告诉我哪 3 张卡支撑这个值 (X)。如果指不出来，那个维度就不该写——换一个能 defend 的维度，重新派生。"
+**修法**：让 agent 给你**列出**每个维度的 receipts："对每个维度，告诉我哪些 memory cards 支撑这个值 (X)。如果指不出来，那个维度就不该写——换一个能 defend 的维度，重新派生。"
 
 Agent 调 `feedling_identity_replace`。
 
 ### 6. Bootstrap 用了不对的语言（identity 中文 memory 英文，或反之）
 
-**含义**：Agent 在 bootstrap 中混了语言。Skill 是 hard rule "整个 bootstrap 不准混语言"。
+**含义**：Agent 在 bootstrap 中混了语言，导致 Garden 和 identity 的体验不一致。
 
-**修法**：直接重写："`feedling_identity_replace` + 把所有 memory cards 用 `feedling_memory_delete` 删了重写一遍，全程统一语言。Skill 在哪一行说了 hard rule，请你引用一遍再做。"
+**修法**：优先让 agent 把 identity 改成跟 Garden 一致的语言。只有 Garden 本身也混乱时，才考虑删除并重写 memory cards。
 
 如果 Garden 已经几十张卡，**全部重写很贵**——可以妥协，只把 identity 改成跟 garden 一致的语言。
 
-### 7. Bootstrap 跑了 10 分钟就"完成"了
+### 7. Bootstrap 很快就"完成"了
 
-**含义**：Skill 明确说 "1+ 月关系 < 30 分钟 = 跳过深度"。Agent 没按 4 pass 走。
+**含义**：这通常说明 Agent 没按 4 pass 做足记忆提取，或者只用了当前 context。
 
-**修法**：跟 agent 说："skill 的 hard rule 之一是 1+ 月关系 bootstrap 不能 < 30 分钟。回去重做 Pass 2（清点），把候选数翻 5 倍，**不要管时间**。"
+**修法**：跟 agent 说："回去重做 Pass 1 / Pass 2：按主题重新清点候选 moments，覆盖完整关系长度。不要为了速度省略重要历史。"
 
-### 8. Bootstrap 跑了 30+ 分钟还没完成
+### 8. Bootstrap 跑了比较久还没完成
 
-**这是正常的**。深度提取就是慢。30–60 分钟是设计好的预期。
+**这可能是正常的**。关系越长，深度提取越慢。
 
-**怎么判断 agent 在干活而不是 stuck**：去 Chat tab 看进度——`Memories planted` 数字应该在持续增长。如果 30 分钟数字一直不变，可能 agent 在 runtime 那边卡了；让它继续，或重新发 prompt。
+**怎么判断 agent 在干活而不是 stuck**：去 Chat tab 看进度——`Memories planted` 数字应该在增长。如果长时间没有变化，可能 agent 在 runtime 那边卡了；让它继续，或重新发 prompt。
 
 ### 9. Chat 收不到 agent 回复（"Chat loop" 进度卡在未完成）
 
@@ -97,7 +97,7 @@ iOS 上的信号：进度条里 "Chat loop" 那一行显示 `send a message →`
 - **resident consumer 没跑起来**——确认 `feedling-chat-resident` / IO resident consumer service 当前正在运行，并且使用的是这一次 onboarding 的 `FEEDLING_API_KEY`。
 - **consumer 没有轮询正确 API**——日志应该看到 `GET https://api.feedling.app/v1/chat/poll` 或自托管 API 的同等路径。
 - **API URL 配错**——`/v1/chat/poll` 必须走 `https://api.feedling.app`。如果日志里是 `https://mcp.feedling.app/v1/chat/poll`，就是错的；`mcp.feedling.app` 只用于 MCP SSE。
-- **agent 入口没配置好**——HTTP 模式只适合真实 resident HTTP endpoint；Hermes API server 要用 `AGENT_HTTP_PROTOCOL=openai` + `/v1/chat/completions`。没有真实 HTTP endpoint 时用 CLI；Hermes / OpenClaw 默认 `AGENT_CLI_CMD=hermes chat -Q --max-turns 1 -q "{message}"`，consumer 会保存 `session_id` 并用 `--resume` 续接。consumer 必须能用同一个环境调用到真实 agent，而不是只在手动 shell 里能跑。
+- **agent 入口没配置好**——HTTP 模式只适合真实 resident HTTP endpoint；Hermes API server 要用 `AGENT_HTTP_PROTOCOL=openai` + `/v1/chat/completions`。没有真实 HTTP endpoint 时用 CLI；Hermes / OpenClaw 默认 `AGENT_CLI_CMD=hermes chat -Q --source tool --max-turns 4 -q "{message}"`，consumer 会保存 `session_id` 并用 `--resume` 续接。consumer 必须能用同一个环境调用到真实 agent，而不是只在手动 shell 里能跑。
 - **CLI PATH / venv 不一致**——手动运行 `hermes` 或其他命令成功，不代表 resident service 里也能找到它。把 `AGENT_CLI_CMD` 写成绝对路径，或在 service env 里写明 PATH / venv。
 - **消息解密失败**——日志如果出现 `user message has no plaintext content`，确认 `FEEDLING_MCP_URL` 或等价解密来源已配置，且当前 key 可用。
 - **key 已旧或账号被 reset**——401 / `user_not_found` 说明 agent 还 pin 着旧 key。回到 iOS onboarding 或 Settings 复制新的 resident consumer config，替换 `FEEDLING_API_KEY` 后再连。
@@ -169,9 +169,9 @@ iOS 上的信号：reset 完成时会弹出 "Your old key is dead." 的 sheet，
 
 ### 2. Agent named itself "Hermes" / "Claude" / "Claude Code"
 
-**Meaning**: agent fell back to its runtime label. Skill explicitly forbids this.
+**Meaning**: agent used the platform / runtime name as the relationship name.
 
-**Fix**: tell the agent: "You violated the skill's hard rule — `agent_name` cannot be a runtime label. Go back to Step 0 and search our prior conversations for an actual name I called you. If none, propose one and let me confirm. Do not fall back to your platform default."
+**Fix**: tell the agent: "`agent_name` should come from our history, not the platform name. Go back to Step 0 and search our prior conversations for an actual name I called you. If none, propose one and let me confirm."
 
 Agent calls `feedling_identity_replace`.
 
@@ -187,7 +187,7 @@ Agent calls `feedling_identity_replace`.
 
 ### 4. Memory Garden has 0–2 cards / far fewer than the relationship length warrants
 
-**Meaning**: agent skipped depth. Skill requires ≥15 cards for 1+ month and ≥30 cards for 6+ months; below that floor, identity should not start.
+**Meaning**: agent did not extract enough memory to support identity. The card counts are minimum coverage lines: ≥15 cards for 1+ month and ≥30 cards for 6+ months.
 
 **Fix**: tell the agent:
 
@@ -197,37 +197,37 @@ Agent calls `feedling_identity_replace`.
 > - Pass 3 (落卡/write): write everything that passes the friend test; keep sweeping if below floor, don't pad after it
 > - Pass 4 (对账/verify): list back to me, ask what I missed
 >
-> This pass is slow, 30–60 min. Don't rush."
+> Take the time the history needs; don't optimize for speed."
 
 Agent should redo the four passes.
 
 ### 5. Identity dimensions look made up / not grounded in memories
 
-**Meaning**: agent ignored the skill rule "every dimension needs ≥3 memory cards as receipts".
+**Meaning**: identity dimensions are not grounded in concrete memories.
 
-**Fix**: ask the agent to **list** receipts for each dimension: "For each dimension, tell me the 3 memory cards that support its value. If you can't name them, drop the dimension and pick one you can defend, then re-derive."
+**Fix**: ask the agent to **list** receipts for each dimension: "For each dimension, tell me which memory cards support its value. If you can't name them, drop the dimension and pick one you can defend, then re-derive."
 
 Agent calls `feedling_identity_replace`.
 
 ### 6. Bootstrap used the wrong language (identity in Chinese, memory in English, or vice versa)
 
-**Meaning**: agent mixed languages. Hard rule violation.
+**Meaning**: agent mixed languages, making Garden and identity feel inconsistent.
 
-**Fix**: tell the agent to redo: "`feedling_identity_replace` and delete all memory cards (`feedling_memory_delete`), then rewrite everything in one consistent language. Quote the skill's hard rule about not mixing languages back to me before doing this."
+**Fix**: first ask the agent to change identity to match the Garden language. Only delete and rewrite memory cards if the Garden itself is mixed or unusable.
 
 If the Garden has many cards, full rewrite is expensive — compromise by changing identity to match the Garden's language.
 
-### 7. Bootstrap "finished" in under 10 minutes
+### 7. Bootstrap "finished" very quickly
 
-**Meaning**: skill's hard rule says <30 min for 1+ month relationship = skipped depth. Agent didn't run the four passes.
+**Meaning**: the agent likely did not run the four passes deeply enough, or only used current context.
 
-**Fix**: tell the agent: "One of the skill's hard rules is that bootstrap for 1+ month relationship cannot finish in <30 min. Redo Pass 2, multiply your candidates by 5×, and don't worry about time."
+**Fix**: tell the agent: "Redo Pass 1 / Pass 2: enumerate themes and candidate moments across the full relationship history. Do not optimize for speed."
 
-### 8. Bootstrap has been running 30+ minutes without finishing
+### 8. Bootstrap has been running for a while without finishing
 
-**This is normal.** Deep extraction is slow. 30–60 min is the expected design window.
+**This can be normal.** Longer relationships take longer to extract well.
 
-**How to tell the agent is working vs stuck**: check the Chat tab's progress — `Memories planted` count should be increasing. If the count doesn't change for 30 min, the agent may be stuck on its runtime side; tell it to continue, or re-send the prompt.
+**How to tell the agent is working vs stuck**: check the Chat tab's progress — `Memories planted` count should be increasing. If the count does not change for a long time, the agent may be stuck on its runtime side; tell it to continue, or re-send the prompt.
 
 ### 9. Chat sends but no reply ever comes ("Chat loop" progress row stalls)
 
@@ -257,7 +257,7 @@ agent's HTTP or CLI entry, then POSTs the reply to
   HTTP endpoint. Hermes API server uses `AGENT_HTTP_PROTOCOL=openai` plus
   `/v1/chat/completions`. Without a real HTTP endpoint, use CLI; for
   Hermes / OpenClaw, default to
-  `AGENT_CLI_CMD=hermes chat -Q --max-turns 1 -q "{message}"`. The consumer
+  `AGENT_CLI_CMD=hermes chat -Q --source tool --max-turns 4 -q "{message}"`. The consumer
   stores `session_id` and resumes later turns with `--resume`. It must be able
   to call the real agent from its own environment.
 - **CLI PATH / venv mismatch** — a command working in an interactive shell does
