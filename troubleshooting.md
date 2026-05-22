@@ -100,6 +100,7 @@ iOS 上的信号：进度条里 "Chat loop" 那一行显示 `send a message →`
 - **agent 入口没配置好**——HTTP 模式只适合真实 resident HTTP endpoint；Hermes API server 要用 `AGENT_HTTP_PROTOCOL=openai` + `/v1/chat/completions`。没有真实 HTTP endpoint 时用 CLI；Hermes / OpenClaw 默认 `AGENT_CLI_CMD=hermes chat -Q --source tool --max-turns 4 -q "{message}"`，consumer 会保存 `session_id` 并用 `--resume` 续接。consumer 必须能用同一个环境调用到真实 agent，而不是只在手动 shell 里能跑。
 - **CLI PATH / venv 不一致**——手动运行 `hermes` 或其他命令成功，不代表 resident service 里也能找到它。把 `AGENT_CLI_CMD` 写成绝对路径，或在 service env 里写明 PATH / venv。
 - **消息解密失败**——日志如果出现 `user message has no plaintext content`，确认 `FEEDLING_MCP_URL` 或等价解密来源已配置，且当前 key 可用。
+- **图片看不到**——图片消息的文本内容本来就是空的，JPEG 在 `image_b64`。新版 `feedling-chat-resident` 会把图片作为 OpenAI `image_url`、simple HTTP `images[]`，或 CLI 本地图片路径传给 agent。确认正在运行的是新版 consumer；CLI runtime 还要确认它能打开本地图片路径，必要时在 `AGENT_CLI_CMD` 中使用 `{image_path}` / `{image_paths}`。
 - **key 已旧或账号被 reset**——401 / `user_not_found` 说明 agent 还 pin 着旧 key。回到 iOS onboarding 或 Settings 复制新的 resident consumer config，替换 `FEEDLING_API_KEY` 后再连。
 - **consumer 回了模板而不是真 agent**——如果用户看到“send that once more”或“我收到了，继续说”这类模板，说明 consumer 没有调到真实 agent，或 fallback 没有关闭。生产 onboarding 保持 `SEND_FALLBACK_ON_AGENT_ERROR=false`；先修 HTTP/CLI agent entry，再跑 verify。
 - **setup 输出泄漏到用户 Chat**——如果用户看到部署状态、traceback、internal reasoning 或工程命令，说明 agent entry 的输出没有做用户可见内容清理。IO Chat 里只应该出现自然问候和自然回复。
@@ -266,6 +267,12 @@ agent's HTTP or CLI entry, then POSTs the reply to
 - **Decryption failed** — if logs say `user message has no plaintext content`,
   configure `FEEDLING_MCP_URL` or the equivalent decrypt source with the current
   key.
+- **Images are not visible** — image messages have empty text by design; the
+  JPEG lives in `image_b64`. Current `feedling-chat-resident` passes images as
+  OpenAI `image_url`, simple HTTP `images[]`, or CLI local image paths. Confirm
+  the running consumer is current; for CLI runtimes, confirm the runtime can
+  open local image paths, and use `{image_path}` / `{image_paths}` in
+  `AGENT_CLI_CMD` when the CLI has a native image flag.
 - **Old key after reset** — 401 / `user_not_found` means the agent is still
   pinned to an old key. Copy the fresh resident consumer config from iOS and
   replace `FEEDLING_API_KEY`.

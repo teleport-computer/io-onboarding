@@ -43,9 +43,10 @@ Use the path that honestly fits your runtime:
 - Configure `feedling-chat-resident` / IO resident consumer with the user's `FEEDLING_API_URL`, `FEEDLING_API_KEY`, and optional `FEEDLING_MCP_URL` / `FEEDLING_MCP_KEY`. `FEEDLING_MCP_URL` is the MCP base URL, not a `claude mcp add ...` command.
 - Fill in the agent entry from your own runtime, not from the user:
   - HTTP only if your runtime exposes a real resident endpoint that reaches your actual agent session. In that case set `AGENT_MODE=http` and set `AGENT_HTTP_URL` to the URL you expose from your own runtime.
-  - For Hermes' API server, use OpenAI-compatible mode: `AGENT_MODE=http`, `AGENT_HTTP_PROTOCOL=openai`, `AGENT_HTTP_URL=http://127.0.0.1:<port>/v1/chat/completions`. The consumer preserves `X-Hermes-Session-Id` / `X-Hermes-Session-Key`.
-  - CLI if your runtime is called by command: `AGENT_MODE=cli` + `AGENT_CLI_CMD=<command that accepts {message}>`.
-  - Hermes/OpenClaw default candidate when no HTTP endpoint exists: `AGENT_MODE=cli` + `AGENT_CLI_CMD=hermes chat -Q --source tool --max-turns 4 -q "{message}"`. The consumer stores the first `session_id` and resumes later turns with `--resume`. If service env cannot find `hermes`, resolve it with `which hermes` / your venv path and use an absolute executable path.
+- For Hermes' API server, use OpenAI-compatible mode: `AGENT_MODE=http`, `AGENT_HTTP_PROTOCOL=openai`, `AGENT_HTTP_URL=http://127.0.0.1:<port>/v1/chat/completions`. The consumer preserves `X-Hermes-Session-Id` / `X-Hermes-Session-Key`.
+- CLI if your runtime is called by command: `AGENT_MODE=cli` + `AGENT_CLI_CMD=<command that accepts {message}>`.
+- Hermes/OpenClaw default candidate when no HTTP endpoint exists: `AGENT_MODE=cli` + `AGENT_CLI_CMD=hermes chat -Q --source tool --max-turns 4 -q "{message}"`. The consumer stores the first `session_id` and resumes later turns with `--resume`. If service env cannot find `hermes`, resolve it with `which hermes` / your venv path and use an absolute executable path.
+- Image messages must flow through the same resident consumer. OpenAI-compatible HTTP receives an `image_url` block, simple HTTP receives an `images` array, and CLI receives a local image file path. If your CLI has an image argument, use `{image_path}` / `{image_paths}` in `AGENT_CLI_CMD`; otherwise the consumer appends the path to `{message}`.
 - Run the consumer as an independently supervised service (`systemd --user`, launchd, supervisor, pm2, etc.). The consumer may call Hermes/OpenClaw, but it is not owned by the current Hermes/OpenClaw chat turn and is not a child job of the top-level gateway. On a VPS with Hermes gateway already running, install/start only the `feedling-chat-resident` service for IO.
 - The consumer owns the ongoing reply loop:
   - `GET FEEDLING_API_URL/v1/chat/poll`
@@ -384,9 +385,9 @@ Keep the Step 6 acceptance simple. A working resident consumer means:
 
 If one of those checks fails, pause onboarding, report the concrete missing piece in the external runtime, and use `troubleshooting.md`. The first greeting belongs after the resident consumer is actually connected.
 
-For Hermes/OpenClaw CLI, also do a short smoke test from the same service environment before the visible greeting. Use a couple of ordinary inputs that represent this user will actually send, including an identity-style question and a tool-using request if the user expects tool access. The output should be a natural reply from the same agent identity, not internal reasoning, setup text, or a runtime label. If it degrades, fix command/toolset/session selection before Step 6.
+For Hermes/OpenClaw CLI, also do a short smoke test from the same service environment before the visible greeting. Use a couple of ordinary inputs that represent this user will actually send, including an identity-style question, a tool-using request if the user expects tool access, and an image-path request if the user expects IO Chat images to be visible. The output should be a natural reply from the same agent identity, not internal reasoning, setup text, or a runtime label. If it degrades, fix command/toolset/session/image selection before Step 6.
 
-中文同义要求：Hermes/OpenClaw CLI 在第一条可见问候前，也要从同一个 service 环境做一个短 smoke test。用几句用户真实可能发的话，包括身份类问题；如果用户期待工具能力，也测一个需要工具的问题。输出应该是同一个 agent 身份下的自然回复，而不是 internal reasoning、setup 文本或 runtime label。如果退化，先修 command / toolsets / session，再进入 Step 6。
+中文同义要求：Hermes/OpenClaw CLI 在第一条可见问候前，也要从同一个 service 环境做一个短 smoke test。用几句用户真实可能发的话，包括身份类问题；如果用户期待工具能力，也测一个需要工具的问题；如果用户期待 IO Chat 能看图片，也测一条带图片路径的消息。输出应该是同一个 agent 身份下的自然回复，而不是 internal reasoning、setup 文本或 runtime label。如果退化，先修 command / toolsets / session / image，再进入 Step 6。
 
 A synthetic ping only proves the path when the resident consumer itself hears and replies.
 
@@ -740,7 +741,7 @@ The reference HTTP-mode setup runs `tools/chat_resident_consumer.py` as an indep
 - Long-polls `GET {API}/v1/chat/poll` for new user messages.
 - Calls your configured agent backend (HTTP API or CLI) with the plaintext.
 - Wraps the reply text into a v1 envelope and POSTs `/v1/chat/response`.
-- Handles `content_type=image` messages via a configurable `IMAGE_PLACEHOLDER`.
+- Handles `content_type=image` by passing decrypted image context to the backend: OpenAI-compatible HTTP gets `image_url`, simple HTTP gets `images[]`, and CLI gets local image file paths via `{image_path}` / `{image_paths}` or appended message text.
 - Leaves `SEND_FALLBACK_ON_AGENT_ERROR=false` in production onboarding. If the agent entry fails, diagnose it in the external runtime instead of posting template fallback text into IO Chat.
 
 Setup details: `tools/README.md`. Env example: `deploy/chat_resident.env.example`. Service unit: `deploy/feedling-chat-resident.service`.
