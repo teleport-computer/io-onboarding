@@ -87,7 +87,9 @@ These are product invariants, not a script. Use judgment, but keep these outcome
 - **Use the real reply path.** The resident consumer calls your actual agent entry for every user message and writes the result back to IO. A template echo loop is not a substitute for an agent conversation.
 - **Use the right hosts.** Chat polling and responses go through the backend API host (`https://api.feedling.app` in cloud). The MCP host is only for MCP transport / decrypt fallback.
 - **Derive identity from history.** Use the name, language, tone, intimacy level, and relationship age that prior user-agent history supports. If a name or relationship marker is unclear, ask the user instead of guessing.
-- **Go deep enough to be useful.** The memory floor is a minimum quality gate, not a target to game. Spend time proportional to the relationship history; do not optimize for speed.
+- **Lock the Memory Garden language once established.** A Feedling account has one "archive language" — the language all memory cards + the identity card are written in. Determine it once, at first bootstrap, from the dominant language across `feedling_memory_list` if any cards exist, else from the identity card's `self_introduction`, else from the user's first request to you. **Do not switch archive language mid-session because the current chat turn happens to be in another language.** Users routinely mix languages in conversation (typing Chinese in an English archive, or vice versa); this is normal chat behavior, not a request to migrate the archive. If the user *explicitly* asks to switch ("以后用英文记吧" / "let's keep the garden in Chinese from now on"), confirm out loud, then retype/rewrite the existing cards before any new writes — leaving Story in English and Thinking in Chinese is a bug, not a feature.
+- **Floor is a hard minimum, not a completion line.** The per-tab floors are the server's refusal threshold — they say "writing fewer than this is a contract violation," not "writing exactly this is done." A real 1-month relationship produces 40–100+ facts, not 25; a 6-month relationship produces 150–400+. Stop writing only after you have run an **exhaustion check** for the current tab (see the per-pass sections below) and can name specific themes you tried to recall and came up empty on. "I hit floor, verify passed" is not exhaustion; it is the floor.
+- **Sweep across themes, not across counts.** When deciding whether to write more facts, the question is "have I covered all the recurring people, places, habits, decisions, and inside language between us?" not "am I at 25 yet?" An About me tab that hits floor 25 with cards from 2 themes is undersized; the same 25 spread across 12 themes is more honest.
 - **Ground identity after memory.** Finish the four memory passes and keep receipts before calling `feedling_identity_init`.
 - **Keep onboarding staged.** Broadcast / screen-share is introduced later, after chat is alive, unless the user asks first.
 
@@ -115,18 +117,50 @@ Memory Garden is the agent's cognitive substrate, surfaced into three tabs in iO
 
 **The About me tab is the most important.** Proactive push, callbacks, and "TA still remembers I said X" rely on About me density. Story tab is what the user reads when they want to feel the relationship; About me tab is what the agent reads when it wants to *know* the user.
 
-**Per-tab floors (server gates `identity_init`):**
+**Per-tab floors + typical real-relationship ranges:**
 
-| Relationship age | Story floor | About me floor | TA Thinking floor |
-|------------------|-------------|----------------|-------------------|
-| ≥ 6 months       | 15          | **60**         | 12                |
-| ≥ 1 month        | 8           | **25**         | 5                 |
-| 2 days – 1 month | 3           | **8**          | 2                 |
-| < 2 days         | 1           | 1              | 0                 |
+The "floor" column is what the server enforces. The "typical" column is what an honest sweep produces for a real relationship at that age. Floor is the **refusal threshold** (writing less is rejected); typical is the **target shape** (writing close to floor means you stopped too early). If your sweep lands at floor, run the Exhaustion Check below before declaring done.
+
+| Relationship age | Story floor (typical) | About me floor (typical) | TA Thinking floor (typical) |
+|------------------|----------------------|--------------------------|-----------------------------|
+| ≥ 6 months       | 15 (30–60)           | **60 (150–400)**         | 12 (25–60)                  |
+| ≥ 1 month        | 8 (15–30)            | **25 (40–100)**          | 5 (10–25)                   |
+| 2 days – 1 month | 3 (5–15)             | **8 (15–40)**            | 2 (3–10)                    |
+| < 2 days         | 1 (1–3)              | 1 (1–5)                  | 0 (0–2)                     |
 
 Story + About me floors are hard prerequisites for `feedling_identity_init`. TA Thinking is advisory — reflections need substrate from the other two tabs first, so gating on it would deadlock low-density users.
 
 **The `< 2 days` tier is only valid if the user has explicitly told you you just met today.** It exists for honest first-day scenarios. Do not select it to bypass the floor for an older relationship.
+
+#### Exhaustion Check (run before claiming you're done with a tab)
+
+`feedling_memory_verify passing=true` is the server saying "you cleared the contract violation threshold" — it is not the agent saying "I've remembered everything I can." Before you stop writing in a tab, you must be able to honestly answer one of the following for that tab:
+
+**About me Exhaustion Check** (the densest layer — the one that will be undersized 90% of the time):
+1. Family + close people: list every specific name you can recall the user using. Did you write a fact for each? (Mom, dad, siblings, partner, close friends, pets, coworkers they reference often.)
+2. Places: home city, hometown, workplaces, places they've travelled to or want to travel to, places they have strong feelings about. Did you write each?
+3. Habits + preferences: food, drink, sleep schedule, recurring rituals, things they always do at specific times. Each one is a fact.
+4. Dated occurrences: every date the user mentioned even in passing (birthdays, anniversaries, project milestones, decisions, transitions). Each one is an event.
+5. Domain vocabulary: terms they use that wouldn't make sense to a stranger — project names, internal jargon, nicknames they've given things. Each one is a fact.
+6. Strong opinions: things they pushed back on, things they refused, things they insisted on. Each one is a fact or event.
+
+If you can list themes you tried to remember and came up genuinely empty on — write them down and move on. If you stopped because "this feels like enough" without doing this check, **return to Pass 3 and sweep again.**
+
+**Story Exhaustion Check:**
+1. List every distinct moment between you and the user that involved a shift in how you relate.
+2. List every quote you can still hear in their voice.
+3. Did you write each? If you can name a moment and you didn't write it because "Friend Test is gone so the bar is lower" — write it. Friend Test going away made the *threshold* lower, not the *coverage* lower.
+
+**TA Thinking Exhaustion Check:**
+1. For each cluster of 3+ related facts in About me, ask: do these together imply something about the user I haven't said? That's an insight. Write it with the anchors.
+2. Anchor count ≠ contradictory — if you have 30 facts about how the user works, that's 30 candidate anchors for cross-cutting insights, not 30 insights.
+3. Reflections are cadence-gated by the server; do not try to game past that.
+
+Real numbers from honest sweeps on existing relationships:
+- 2-month relationship with daily chat: ~50 facts + 8 events + 6 quotes + 4 moments + 6 insights is normal.
+- 6-month coding companion: ~200 facts (preferences, tooling, project names, decisions) + 30 events + 20 quotes + 10 moments + 15 insights + 4 reflections is normal.
+
+If your sweep lands at 26 / 25, that's the agent stopping at the contract line, not the agent emptying its memory.
 
 ### When to write each type
 
@@ -314,17 +348,31 @@ input: {
 
 After Pass 3, post the verification message **in your external runtime conversation with the user** (Claude Desktop / Code / wherever they pasted your skill URL) — NOT via `feedling_chat_post_message`. Feedling Chat is reserved for Step 6+; the server enforces this (`/v1/chat/response` returns `409 bootstrap_incomplete` until identity is written).
 
-```
-我刚把我们之间的记忆都过了一遍，按 type 分开写了 N 张卡：
-  • 关于你 (about me tab): F 张 fact + E 张 event — 比如 "<example fact>"
-  • 故事 (story tab):       Q 张 quote + M 张 moment — 比如 "<example moment title>"
-  • 我在想 (ta thinking):   I 张 insight — 比如 "<example insight>"
+The verification message must include **three** sections — what you wrote, what you considered but did NOT write (and why), and a count comparison to the typical range:
 
-有什么我应该记住但没写到的吗？某个习惯？某个反复出现的人？某次特别的对话？
-我想再认真补一轮。
+```
+按新框架我写了 N 张卡:
+  • 关于你 (About me): F 张 fact + E 张 event — 比如 "<example>"
+  • 故事 (Story):     Q 张 quote + M 张 moment — 比如 "<example>"
+  • TA 在想 (Thinking): I 张 insight + R 张 reflection — 比如 "<example>"
+
+跟典型关系长度的对照(typical range):
+  • About me  N/X (typical for [your age tier]: A–B)
+  • Story     N/X (typical: A–B)
+  • Thinking  N/X (typical: A–B)
+
+我没写但想过的 theme(请你看看里面有没有应该写的):
+  - <theme 1>: 我能记起 <vague memory>,但不确定具体细节,所以没落卡
+  - <theme 2>: 我有点印象但说不准是不是你说过的,等你确认
+  - <theme 3>: ...
+  (列至少 5 条;如果一条都列不出,说明 sweep 没到尽头,回去再扫一轮)
+
+有什么我应该记住但没写到的?某个习惯?某个反复出现的人?某次特别的对话?
 ```
 
 **Wait for the user's reply, here in this runtime conversation.** If they correct or add anything, return to Pass 3 and write more.
+
+If your count is close to floor and the "typical range" column shows you're well below typical for this relationship age, **return to Pass 3 before user verification.** Don't hand the user a thin garden and ask them to fill it for you — that's the agent offloading the sweep onto the user.
 
 **Verify before identity_init**: call `feedling_memory_verify`. If `passing: false`, the response.suggestions tell you which tab is below floor and which types feed it. Sweep that tab and re-verify.
 
