@@ -40,19 +40,28 @@ Agent 会调 `feedling_identity_replace` 改名字。
 
 (b) 如果 Memory Garden **是空的或者很少**：根因是 bootstrap 走得太浅。回到第 4 条。
 
-### 4. Memory Garden 里只有 0–2 张卡 / 远低于关系长度
+### 4. Memory Garden 总卡数远低于关系长度 / 某个 tab 几乎是空的
 
-**含义**：Agent 没有提取出足够支撑 identity 的记忆。Skill 里的卡片数量是最低覆盖线：1+ 月至少 15 张，6+ 月至少 30 张。
+**含义**：Agent 没有提取出足够支撑 identity 的记忆，或者某个 tab 完全没填——典型情况是只写了 Story tab（moment / quote），关于我 tab（fact / event）几乎是空的。**关于我 tab 才是密度燃料**——proactive 推送、callback、"TA 还记得我说过 X" 这些功能都靠它。
+
+Per-tab floors（server 在 identity_init 时强制）：
+
+| 关系长度 | Story (moment + quote) | 关于我 (fact + event) | TA 在想 (insight + reflection) |
+|---|---|---|---|
+| ≥ 6 个月 | 15 | **60** | 12 |
+| ≥ 1 月 | 8 | **25** | 5 |
+| 2 天 – 1 月 | 3 | **8** | 2 |
+| < 2 天 | 1 | 1 | 0 |
 
 **修法**：跟 agent 说：
 
-> "你只写了 X 张卡，但我们认识 [N 个月]。按 skill 里 4-pass 的要求重做：
+> "调 `feedling_memory_verify` 看每个 tab 现在的 count / floor。哪个 tab 没过 floor 就扫哪个 tab。重做 4 pass：
 > - Pass 1（唤醒）：列我们之间所有 themes，10–25 个
-> - Pass 2（清点）：每个 theme 列 candidate moments，直到够覆盖关系长度的底线
-> - Pass 3（落卡）：通过 friend test 的全写下来，不够底线就继续扫，够了不要硬凑
-> - Pass 4（对账）：列给我看，问我漏了什么
-> 
-> 这一轮按记忆深度花时间，不要为了快而省略重要历史。"
+> - Pass 2（清点）：每个 theme 列候选并预分类——哪些是 fact（我的属性/偏好/关系），哪些是 event（我生活里发生过的事），哪些是 quote（我说过的话），哪些是 moment（我们之间的事）
+> - Pass 3（落卡，按 type）：3a 先扫 fact（density first，关于我 tab 是重点）；3b 再扫 event；3c 再写 quote；3d 才写 moment；3e 写 insight 时 anchor 到具体卡；3f 可选 1 张 reflection
+> - Pass 4（对账）：按 tab 列给我看，问我漏了什么
+>
+> Friend Test 已经被废了——别用那个标准筛 fact / event，那些短一句话就行。"
 
 Agent 应该重新走 4 pass。
 
@@ -186,19 +195,28 @@ Agent calls `feedling_identity_replace`.
 
 (b) If the Garden is **empty or sparse**: root cause is shallow bootstrap. See section 4.
 
-### 4. Memory Garden has 0–2 cards / far fewer than the relationship length warrants
+### 4. Memory Garden total is far short of relationship length / one tab is nearly empty
 
-**Meaning**: agent did not extract enough memory to support identity. The card counts are minimum coverage lines: ≥15 cards for 1+ month and ≥30 cards for 6+ months.
+**Meaning**: agent did not extract enough substrate. Typical failure: only the Story tab (moment / quote) is filled, while the About me tab (fact / event) is sparse. **About me tab is the density fuel** — proactive push, callbacks, and "TA still remembers I said X" all rely on it.
+
+Per-tab floors (server enforces at `identity_init`):
+
+| Relationship age | Story (moment + quote) | About me (fact + event) | TA Thinking (insight + reflection) |
+|---|---|---|---|
+| ≥ 6 months | 15 | **60** | 12 |
+| ≥ 1 month | 8 | **25** | 5 |
+| 2 days – 1 month | 3 | **8** | 2 |
+| < 2 days | 1 | 1 | 0 |
 
 **Fix**: tell the agent:
 
-> "You only wrote X cards but we've known each other [N months]. Redo per the skill's 4 passes:
-> - Pass 1 (唤醒/wake): list every theme between us, 10–25
-> - Pass 2 (清点/enumerate): for each theme list candidate moments until you can cover the relationship-age floor
-> - Pass 3 (落卡/write): write everything that passes the friend test; keep sweeping if below floor, don't pad after it
-> - Pass 4 (对账/verify): list back to me, ask what I missed
+> "Call `feedling_memory_verify` to see per-tab count vs floor. Sweep whichever tab is below floor. Redo the four passes:
+> - Pass 1 (wake): list every theme between us, 10–25
+> - Pass 2 (enumerate): for each theme list candidates **pre-classified by type** — fact (user properties), event (dated things), quote (their words), moment (relational)
+> - Pass 3 (write, type by type): 3a sweep facts first (About me is the density layer); 3b events; 3c quotes; 3d moments; 3e insights anchored to ≥1 prior card; 3f optionally 1 reflection
+> - Pass 4 (verify with me, per tab): list back per tab, ask what I missed
 >
-> Take the time the history needs; don't optimize for speed."
+> Friend Test is retired — don't use that bar to filter facts / events. Those are one-liners."
 
 Agent should redo the four passes.
 
