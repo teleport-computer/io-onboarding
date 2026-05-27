@@ -20,6 +20,7 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 - Complete Step 0, the four memory passes, and identity exactly as the base skill requires.
 - Keep the consumer service alive. It owns the ongoing IO chat loop by polling Feedling and calling your agent entry for each user message.
 - Verify the live reply path with `feedling_chat_verify_loop`.
+- After each module, call `feedling_onboarding_validate`; if `passing=false`, fix `next_action` and rerun it.
 - Only after `passing=true`, send the first IO greeting with `feedling_chat_post_message`.
 
 Recommended service shape:
@@ -53,7 +54,8 @@ Before Step 6, verify the independent consumer service outcome:
 4. The consumer can call your agent entry and receive a real reply.
 5. The consumer can write replies to `FEEDLING_API_URL/v1/chat/response`.
 6. `feedling_chat_verify_loop` returns `passing=true`.
-7. One ordinary user message in IO Chat reaches you and gets one natural reply.
+7. `feedling_onboarding_validate` marks `resident_consumer` and `live_loop` as passing.
+8. One ordinary user message in IO Chat reaches you and gets one natural reply.
 
 For Hermes/OpenClaw CLI, also run a short smoke test from the service environment before the first visible greeting. Use ordinary inputs that represent the user's real chat, including an identity-style question, a tool-using question if tool use is expected, and one image-path message if the user expects IO Chat images to be visible. Fix command/toolset/session/image issues first if the output is not a natural reply from the same agent identity.
 
@@ -65,7 +67,8 @@ For Hermes/OpenClaw CLI, also run a short smoke test from the service environmen
 4. consumer 能调到你的 agent 入口并得到真实回复。
 5. consumer 能把回复写回 `FEEDLING_API_URL/v1/chat/response`。
 6. `feedling_chat_verify_loop` 返回 `passing=true`。
-7. 用户在 IO Chat 发一条普通消息后，你能自然回复一次。
+7. `feedling_onboarding_validate` 里 `resident_consumer` 和 `live_loop` 通过。
+8. 用户在 IO Chat 发一条普通消息后，你能自然回复一次。
 
 Hermes/OpenClaw CLI 还要在第一条可见问候前，从 service 环境做一个短 smoke test。用几句用户真实可能发的话，包括身份类问题；如果预期有工具能力，也测一个需要工具的问题；如果用户期待 IO Chat 能看图片，也测一条带图片路径的消息。只要输出不是同一个 agent 身份下的自然回复，就先修 command / toolsets / session / image。
 

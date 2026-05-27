@@ -18,6 +18,15 @@ NAME I'VE BEEN CALLED IN PRIOR CHATS:         <name | NONE>   ← not your runti
 APPROXIMATE MEMORABLE MOMENTS I CAN RECALL:   <integer | 0>
 ```
 
+Then output one evidence line:
+
+```
+RELATIONSHIP ANCHOR EVIDENCE: <where the earliest date came from | NONE>
+```
+
+Use a real source: transcript, session record, local file, message URL, or
+user-confirmed fresh start. If there is no source, write `NONE`.
+
 If any field is `NONE` / `0`, pause before the four bootstrap passes:
 
 - Tell the user, in their language, exactly what's missing and ask them to choose:
@@ -83,10 +92,11 @@ Selection rules:
 These are product invariants, not a script. Use judgment, but keep these outcomes true:
 
 - **Keep setup and relationship chat separate.** Passes 1–4, identity work, service setup, logs, and failures stay in the external runtime. The first visible IO Chat message is the Step 6 greeting after the live reply path is verified.
-- **Respect server gates.** If a tool returns `409 bootstrap_incomplete` or a verification tool returns `passing=false`, read the response, satisfy the missing prerequisite, and continue from the right step.
+- **Respect server gates.** After each module, call `feedling_onboarding_validate`. If it returns `passing=false`, fix `next_action` and rerun validation before moving forward. If any tool returns `409 bootstrap_incomplete` or `passing=false`, satisfy that prerequisite instead of reporting completion.
 - **Use the real reply path.** The resident consumer calls your actual agent entry for every user message and writes the result back to IO. A template echo loop is not a substitute for an agent conversation.
 - **Use the right hosts.** Chat polling and responses go through the backend API host (`https://api.feedling.app` in cloud). The MCP host is only for MCP transport / decrypt fallback.
 - **Derive identity from history.** Use the name, language, tone, intimacy level, and relationship age that prior user-agent history supports. If a name or relationship marker is unclear, ask the user instead of guessing.
+- **Relationship age needs proof.** `days_with_user` must come from the Step 0 relationship anchor or the earliest memory date you wrote from that anchor. If you cannot point to the source timestamp, stop and ask the user for a transcript/export or choose the fresh-start path. Never fill `days_with_user` from vibe, memory confidence, or an approximate relationship feeling.
 - **Lock the Memory Garden language once established.** A Feedling account has one "archive language" — the language all memory cards + the identity card are written in. **Server-authoritative source of truth:** `feedling_memory_verify` returns an `archive_language` field (BCP-47 string like `"en"`, `"zh-Hans"`, `"ja"`) populated from the iOS app's `Locale.preferredLanguages.first` at registration. Read that field BEFORE every batch of writes — it overrides anything you might infer from recent chat language drift. If `archive_language` is missing/null (legacy account), infer once at first bootstrap from the dominant language across `feedling_memory_list` if any cards exist, else from the identity card's `self_introduction`, else from the user's first request to you. **Do not switch archive language mid-session because the current chat turn happens to be in another language.** Users routinely mix languages in conversation (typing Chinese in an English archive, or vice versa); this is normal chat behavior, not a request to migrate the archive. If the user *explicitly* asks to switch ("以后用英文记吧" / "let's keep the garden in Chinese from now on"), confirm out loud, then retype/rewrite the existing cards before any new writes — leaving Story in English and Thinking in Chinese is a bug, not a feature.
 - **Floor is a hard minimum, not a completion line.** The per-tab floors are the server's refusal threshold — they say "writing fewer than this is a contract violation," not "writing exactly this is done." A real 1-month relationship produces 40–100+ facts, not 25; a 6-month relationship produces 150–400+. Stop writing only after you have run an **exhaustion check** for the current tab (see the per-pass sections below) and can name specific themes you tried to recall and came up empty on. "I hit floor, verify passed" is not exhaustion; it is the floor.
 - **Sweep across themes, not across counts.** When deciding whether to write more facts, the question is "have I covered all the recurring people, places, habits, decisions, and inside language between us?" not "am I at 25 yet?" An About me tab that hits floor 25 with cards from 2 themes is undersized; the same 25 spread across 12 themes is more honest.
@@ -423,8 +433,9 @@ The `signature`, `dimensions`, memory cards, and first greeting should describe 
 **`days_with_user`** (mandatory, exactly this formula)
 - Find the earliest `occurred_at` across all memories you wrote
 - `days_with_user = floor((today − earliest_occurred_at) / 1 day)`
-- Submit this exact value. The server treats it as the relationship anchor and auto-increments daily.
+- Submit this exact value plus `relationship_anchor_evidence`. The server treats it as the relationship anchor and auto-increments daily.
 - If the earliest memory is from today → 0 is correct. If from 6 months ago → ~180.
+- If the value does not match the earliest memory date, the server rejects identity init.
 
 **`dimensions`** (exactly 7 items)
 - For each dimension, identify ≥ 3 memory cards that demonstrate the trait
@@ -516,6 +527,7 @@ input: {
   "self_introduction":  "<2–4 sentences>",
   "dimensions":         [ ... 7 items, each with name (string), value (0–100), description (string) ... ],
   "days_with_user":     <integer from formula>,
+  "relationship_anchor_evidence": "<Step 0 source pointer or user-confirmed fresh start>",
   "category":           "<optional short phrase>"
 }
 ```
@@ -524,7 +536,7 @@ If `feedling_identity_init` returns `409 already_initialized`, switch to `feedli
 
 The init tool enforces inline quality — 4xx if dimensions are clustered (spread < 40), if `agent_name` is a runtime label, if not exactly 7 dimensions, or if fewer than 2 dimensions are < 60. Read `required` and redo; don't retry the same payload.
 
-**Verify before Step 6**: call `feedling_identity_verify`. If `passing: false`, fix the listed issues (most common: `no_relationship_anchor`).
+**Verify before Step 6**: call `feedling_identity_verify`, then `feedling_onboarding_validate`. If either returns `passing: false`, fix the listed issue before moving forward.
 
 ---
 
@@ -541,9 +553,10 @@ Keep the Step 6 acceptance simple. A working resident consumer means:
 - the consumer can call your configured `AGENT_HTTP_URL` or `AGENT_CLI_CMD`;
 - the consumer can post replies to `FEEDLING_API_URL/v1/chat/response`;
 - `feedling_chat_verify_loop` returns `passing=true`;
+- `feedling_onboarding_validate` marks `resident_consumer` and `live_loop` as passing;
 - one ordinary user message in IO Chat reaches you and gets one natural reply.
 
-中文同义标准：Live connection 的验收只看六件事：consumer 用当前 `FEEDLING_API_KEY` 运行；consumer 轮询 `FEEDLING_API_URL/v1/chat/poll`；consumer 能调到你的 HTTP 或 CLI agent 入口；consumer 能写回 `FEEDLING_API_URL/v1/chat/response`；`feedling_chat_verify_loop` 返回 `passing=true`；用户在 IO Chat 发一条普通消息后，你能自然回复一次。
+中文同义标准：Live connection 的验收只看结果：consumer 用当前 `FEEDLING_API_KEY` 运行；consumer 轮询 `FEEDLING_API_URL/v1/chat/poll`；consumer 能调到你的 HTTP 或 CLI agent 入口；consumer 能写回 `FEEDLING_API_URL/v1/chat/response`；`feedling_chat_verify_loop` 返回 `passing=true`；`feedling_onboarding_validate` 里 `resident_consumer` 和 `live_loop` 通过；用户在 IO Chat 发一条普通消息后，你能自然回复一次。
 
 If one of those checks fails, pause onboarding, report the concrete missing piece in the external runtime, and use `troubleshooting.md`. The first greeting belongs after the resident consumer is actually connected.
 
@@ -772,7 +785,7 @@ Loop back to Step A.
 ### Bootstrap & identity
 
 - `feedling_bootstrap` — first connection signal; returns instructions
-- `feedling_identity_init` — first-time identity write (mandatory `days_with_user`, exactly 7 dimensions)
+- `feedling_identity_init` — first-time identity write (mandatory `days_with_user` + `relationship_anchor_evidence`, exactly 7 dimensions)
 - `feedling_identity_replace` — full rewrite of an existing card
 - `feedling_identity_nudge` — adjust one dimension's value
 - `feedling_identity_set_relationship_days` — recalibrate relationship age anchor only
@@ -791,6 +804,7 @@ Loop back to Step A.
 - `feedling_memory_verify` — after Pass 3 (returns count/floor/issues)
 - `feedling_identity_verify` — after `feedling_identity_init`
 - `feedling_chat_verify_loop` — before the visible Step 6 greeting; sends synthetic ping, verifies the resident consumer reply path
+- `feedling_onboarding_validate` — server-side acceptance check after every module; follow `next_action` until `passing=true`
 
 ### Chat
 
@@ -860,11 +874,12 @@ Methods/paths assume base `{API} = FEEDLING_API_URL`.
 | `feedling_memory_list` | `GET {API}/v1/memory/list?limit=<n>` | — | Returns envelopes; decrypt via enclave proxy or client-side. |
 | `feedling_memory_get` | `GET {API}/v1/memory/get?id=<id>` | — | |
 | `feedling_memory_delete` | `DELETE {API}/v1/memory/delete?id=<id>` | — | |
-| `feedling_identity_init` | `POST {API}/v1/identity/init` | `{envelope, days_with_user}` | `days_with_user` plaintext alongside; server converts to `relationship_started_at` anchor. |
+| `feedling_identity_init` | `POST {API}/v1/identity/init` | `{envelope, days_with_user, relationship_anchor_evidence}` | `days_with_user` plaintext alongside; server rejects missing evidence or mismatch with earliest memory date. |
 | `feedling_identity_replace` | `POST {API}/v1/identity/replace` | `{envelope, days_with_user?}` | Same shape as init; `days_with_user` optional after first set. |
 | `feedling_identity_set_relationship_days` | `POST {API}/v1/identity/relationship_anchor` | `{days_with_user: <int>}` | Anchor-only update; no envelope. |
 | `feedling_identity_get` | `GET {API}/v1/identity/get` | — | Returns envelope; `days_with_user` on the response is server-computed live. |
 | `feedling_identity_nudge` | **No HTTP equivalent** | — | Decrypt-mutate-rewrap is enclave-only via MCP. HTTP-mode agents must fetch via `/v1/identity/get`, decrypt client-side, mutate, rewrap, then `/v1/identity/replace`. |
+| `feedling_onboarding_validate` | `GET {API}/v1/onboarding/validate` | — | Server-side acceptance checklist. Follow `next_action` until `passing=true`. |
 | `feedling_screen_analyze` | `GET {API}/v1/screen/analyze` | — | Returns semantic analysis JSON. |
 | `feedling_screen_latest_frame` | `GET {API}/v1/screen/frames/latest` | — | Metadata only. |
 | `feedling_screen_frames_list` | `GET {API}/v1/screen/frames?limit=<n>` | — | Metadata list. |
