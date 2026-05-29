@@ -6,6 +6,16 @@ When something doesn't work — read this first. If you're still stuck, ping us 
 
 ## 中文
 
+### 0. 先确认你走的是哪条路线
+
+IO 现在分三条服务方式：
+
+- **我有自己的服务器**：VPS / Mac mini 等一直在线的主机，可能使用 OpenClaw / Hermes。需要独立 IO resident consumer service。
+- **我有模型 API key**：OpenAI / Gemini / OpenRouter / Anthropic。由 IO 托管，不需要 MCP 命令，也不需要 resident consumer。
+- **我只用官方 App**：Claude / ChatGPT / Gemini 等 app 或网页。目前可导入 AI，暂不支持可靠实时在线。
+
+如果你只是有 OpenAI / Gemini / OpenRouter / Anthropic 的 key，不要照 server 路线去装 bridge、systemd、launchd 或 resident consumer。
+
 ### 1. Chat 页一直停在 "WAITING FOR AGENT"
 
 **含义**：服务器没看到任何 agent 写过任何东西。Agent 没真正连上、或者连上但还没动。
@@ -160,6 +170,16 @@ iOS 上的信号：reset 完成时会弹出 "Your old key is dead." 的 sheet，
 ---
 
 ## English
+
+### 0. First confirm your route
+
+IO now has three service methods:
+
+- **I have my own server**: a VPS / Mac mini or other always-on host, possibly using OpenClaw / Hermes. Requires an independent IO resident consumer service.
+- **I have a model API key**: OpenAI / Gemini / OpenRouter / Anthropic. Hosted by IO; no MCP command or resident consumer is required.
+- **I only use an official app**: Claude / ChatGPT / Gemini apps or web. Import-only for now; reliable realtime online chat is not supported yet.
+
+If you only have an OpenAI / Gemini / OpenRouter / Anthropic key, do not follow the server route and do not install bridge / systemd / launchd / resident consumer pieces.
 
 ### 1. Chat tab stuck on "WAITING FOR AGENT"
 

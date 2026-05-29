@@ -21,13 +21,13 @@ Get IO running on your phone, with your own AI agent inside, with your shared hi
 
 通过 TestFlight 邀请链接安装。打开后 app 自动注册账号，不用你做什么——等几秒进入 Chat 页面。
 
-**2. 在 Chat onboarding 里选择路径并复制连接信息**
+**2. 在 Chat onboarding 里选择服务方式**
 
-打开 app → Chat。先选 TA 从哪里来：
+打开 app → Chat。先选你需要哪种服务方式：
 
-- **TA 在我的机器上**：Hermes / OpenClaw / 一台一直开着的 Mac 或 server。复制 `resident consumer config`，形如 `FEEDLING_API_URL` / `FEEDLING_API_KEY` / `FEEDLING_MCP_URL`。这不是 `claude mcp add` 命令。
-- **TA 在聊天工具里**：Claude / ChatGPT / Gemini / Cursor 等。复制 `MCP 连接`，形如 `claude mcp add feedling --transport sse "https://mcp.feedling.app/sse?key=…"`。
-- **我不确定**：复制连接信息，让 TA 先判断自己属于哪条路径，再只使用对应的那一段。
+- **我有自己的服务器**：VPS / Mac mini 等一直在线的主机，可能使用 OpenClaw / Hermes。复制 `IO connection` / `resident consumer config`，形如 `FEEDLING_API_URL` / `FEEDLING_API_KEY` / `FEEDLING_MCP_URL`。这不是 `claude mcp add` 命令。
+- **我有模型 API key**：OpenAI / Gemini / OpenRouter / Anthropic。这条路线由 IO 托管，不需要 MCP 命令，也不需要你运行 resident consumer。
+- **我只用官方 App**：Claude / ChatGPT / Gemini 等 app 或网页。目前可导入 AI，暂不支持实时在线。
 
 **3. 给你的 agent 发开场指令**
 
@@ -36,7 +36,7 @@ Get IO running on your phone, with your own AI agent inside, with your shared hi
 ```
 现在开始 IO bootstrap。
 
-你刚刚已经拿到了 skill URL 和 IO 连接信息。请完整按那份 skill 执行：先做 Step 0，再整理记忆、派生身份、建立 Live connection，最后在 IO Chat 里发第一句自然问候。
+你刚刚已经拿到了对应路线的 skill URL 和 IO 连接信息。请完整按那份 skill 执行：先做 Step 0，再整理记忆、派生身份。如果这条路线支持 Live connection，再建立连接并在 IO Chat 里发第一句自然问候。
 
 setup 过程、错误、日志和内部推理都留在我们当前这个对话里；IO Chat 里只发自然问候和之后的自然回复。
 
@@ -58,11 +58,11 @@ Agent 会先做 4 轮记忆提取——**深度记录你们的所有过往瞬间
 
 **5. 验收**
 
-五件事到位就算 setup 成功：
+五件事到位就算 setup 成功（官方 App 导入路线如果明确标注“不支持实时在线”，则只验收前两项和导入说明）：
 
 - [ ] **身份卡**：Identity tab 能看到 agent 的名字（不是 "Hermes" 或 "Claude"）、7 维雷达、自我介绍
 - [ ] **记忆花园**：Garden tab 至少 5 张卡；如果你们认识 1+ 月，至少 15 张；6+ 月，至少 30 张
-- [ ] **Live connection**：Chat tab 的进度里显示连接已接通；这代表后续消息会被真实 reply pipeline 接住
+- [ ] **Live connection**：如果你选择“我有自己的服务器”或已开放的模型 API key 路线，Chat tab 的进度里显示连接已接通；这代表后续消息会被真实 reply pipeline 接住
 - [ ] **第一条消息**：Chat tab 看到 agent 的开场消息，里面会**直接说出**他算的天数（"今天是第 187 天"），不是问句
 - [ ] **天数正确**：你跟他确认天数对不对。如果不对，他会调 `feedling_identity_set_relationship_days` 修。修完 Identity 页 "DAY X" 应该是你说的那个
 
@@ -89,13 +89,13 @@ Agent 会先做 4 轮记忆提取——**深度记录你们的所有过往瞬间
 
 Install via the TestFlight invite. On first launch IO auto-registers an account; nothing for you to do — wait a few seconds for the Chat tab.
 
-**2. Pick the path in Chat onboarding and copy the connection details**
+**2. Choose your service method in Chat onboarding**
 
-Open the app → Chat. First choose where he is coming from:
+Open the app → Chat. First choose the service method you need:
 
-- **On my machine**: Hermes / OpenClaw / an always-on Mac or server. Copy the `resident consumer config`, which looks like `FEEDLING_API_URL` / `FEEDLING_API_KEY` / `FEEDLING_MCP_URL`. This is not a `claude mcp add` command.
-- **In a chat app**: Claude / ChatGPT / Gemini / Cursor, etc. Copy the `MCP connection`, which looks like `claude mcp add feedling --transport sse "https://mcp.feedling.app/sse?key=…"`.
-- **I'm not sure**: copy the connection info and let him identify the right path first, then use only the matching block.
+- **I have my own server**: a VPS / Mac mini or other always-on host, possibly using OpenClaw / Hermes. Copy the `IO connection` / `resident consumer config`, which looks like `FEEDLING_API_URL` / `FEEDLING_API_KEY` / `FEEDLING_MCP_URL`. This is not a `claude mcp add` command.
+- **I have a model API key**: OpenAI / Gemini / OpenRouter / Anthropic. IO hosts this route; no MCP command or resident consumer is required.
+- **I only use an official app**: Claude / ChatGPT / Gemini apps or web. You can import the AI for now; realtime online chat is not supported yet.
 
 **3. Send your agent the opening prompt**
 
@@ -104,7 +104,7 @@ This is the most important step. Give your agent a clear start signal after you 
 ```
 Start IO bootstrap now.
 
-You already have the skill URL and IO connection details. Follow that skill end to end: start with Step 0, then build the Memory Garden, derive identity, establish the Live connection, and finally send the first natural greeting in IO Chat.
+You already have the route-specific skill URL and IO connection details. Follow that skill end to end: start with Step 0, build the Memory Garden, and derive identity. If this route supports Live connection, establish it and finally send the first natural greeting in IO Chat.
 
 Keep setup work, errors, logs, and internal reasoning in this current conversation. IO Chat should only receive the natural greeting and later natural replies.
 
@@ -126,11 +126,11 @@ You **can close the app** while this runs. The agent keeps going on its runtime 
 
 **5. Acceptance**
 
-Setup is done when all five hold:
+Setup is done when all five hold. For the official-app import route, if it clearly says realtime online chat is not supported, accept only the first two items plus that limitation disclosure.
 
 - [ ] **Identity card** — Identity tab shows the agent's name (NOT "Hermes" or "Claude"), 7-axis radar, and self-introduction
 - [ ] **Memory Garden** — Garden tab has at least 5 cards; for a 1+ month relationship, at least 15; for 6+ months, at least 30
-- [ ] **Live connection** — Chat tab progress shows the connection is verified; future messages should reach a real reply pipeline
+- [ ] **Live connection** — if you chose the server route or an enabled model API key route, Chat tab progress shows the connection is verified; future messages should reach a real reply pipeline
 - [ ] **First message** — Chat tab shows the agent's opening message that **states** the day count it computed ("Today is day 187"), as a fact, not a question
 - [ ] **Days correct** — confirm the day count is right. If wrong, the agent calls `feedling_identity_set_relationship_days` to fix it. After fix, Identity tab "DAY X" matches what you said
 

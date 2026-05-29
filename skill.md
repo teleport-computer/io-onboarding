@@ -42,48 +42,59 @@ Repeat this check on each fresh connection.
 
 ## Connection path
 
-Feedling Chat works when an **independent resident consumer service** keeps the Live connection alive. That service polls Feedling for new user messages, calls your agent entry, and writes the reply back to Feedling.
+IO has three user-facing routes. The iOS onboarding page should give you a
+route-specific profile before this base skill. Obey that profile for connection
+setup; this section defines the shared boundaries so the routes do not get
+mixed together.
 
-Use the path that honestly fits your runtime:
+### Route A — I have my own server
 
-### Path 1 — Independent resident consumer service
+Use `skill-resident-agent.md` for Hermes / OpenClaw, Claude Code on a Mac mini
+or VPS, an always-on agent loop, or any runtime that can expose a real local
+HTTP or CLI agent entry.
 
-- Use this for Hermes / OpenClaw, Claude Code on a Mac mini or VPS, an always-on agent loop, or any agent that can expose a local HTTP or CLI entry.
-- Configure `feedling-chat-resident` / IO resident consumer with the user's `FEEDLING_API_URL`, `FEEDLING_API_KEY`, and optional `FEEDLING_MCP_URL` / `FEEDLING_MCP_KEY`. `FEEDLING_MCP_URL` is the MCP base URL, not a `claude mcp add ...` command.
-- Install or update the official consumer code from `https://github.com/teleport-computer/feedling-mcp` before starting the service. Existing checkouts must fast-forward to `origin/main`; dirty or non-official checkouts should be replaced by a fresh checkout. The service `WorkingDirectory` and `ExecStart` must point at that current checkout, and your external setup report should include local HEAD plus `origin/main`.
-- Fill in the agent entry from your own runtime, not from the user:
-  - HTTP only if your runtime exposes a real resident endpoint that reaches your actual agent session. In that case set `AGENT_MODE=http` and set `AGENT_HTTP_URL` to the URL you expose from your own runtime.
-- For Hermes' API server, use OpenAI-compatible mode: `AGENT_MODE=http`, `AGENT_HTTP_PROTOCOL=openai`, `AGENT_HTTP_URL=http://127.0.0.1:<port>/v1/chat/completions`. The consumer preserves `X-Hermes-Session-Id` / `X-Hermes-Session-Key`.
-- CLI if your runtime is called by command: `AGENT_MODE=cli` + `AGENT_CLI_CMD=<command that accepts {message}>`.
-- Hermes/OpenClaw default candidate when no HTTP endpoint exists: `AGENT_MODE=cli`, `HERMES_HOME=<same home/profile used by the real running resident agent>`, and `AGENT_CLI_CMD=hermes chat -Q --source tool --max-turns 60 -q "{message}"`. Read `HERMES_HOME` from the actual running service environment when available (`systemctl --user cat/show hermes-gateway`, or `/proc/<MainPID>/environ`); do not guess from profile folder names. The consumer stores the first `session_id` and resumes later turns with `--resume`. If service env cannot find `hermes`, resolve it with `which hermes` / your venv path and use an absolute executable path. Do not wrap `{message}` in a new persona prompt; call the real profile directly.
-- Image messages must flow through the same resident consumer. OpenAI-compatible HTTP receives an `image_url` block, simple HTTP receives an `images` array, and CLI receives a local image file path. If your CLI has an image argument, use `{image_path}` / `{image_paths}` in `AGENT_CLI_CMD`; otherwise the consumer appends the path to `{message}`.
-- Run the consumer as an independently supervised service (`systemd --user`, launchd, supervisor, pm2, etc.). The consumer may call Hermes/OpenClaw, but it is not owned by the current Hermes/OpenClaw chat turn and is not a child job of the top-level gateway. On a VPS with Hermes gateway already running, install/start only the `feedling-chat-resident` service for IO.
-- The consumer owns the ongoing reply loop:
-  - `GET FEEDLING_API_URL/v1/chat/poll`
-  - call your agent entry
-  - `POST FEEDLING_API_URL/v1/chat/response`
-  - repeat
-- Complete Step 0, the four memory passes, and identity setup through your external runtime conversation with the user. Before Step 6, verify that the resident consumer is running and `feedling_chat_verify_loop` returns `passing=true`.
-- Treat a stale consumer checkout as a failed Live connection even if polling works. If GitHub has newer `tools/chat_resident_consumer.py` code than the service is running, update the checkout and restart only `feedling-chat-resident` before Step 6.
+The Live connection is owned by an **independent resident consumer service**.
+That service polls IO for new user messages, calls the user's real agent entry,
+and writes replies back to IO:
 
-### Path 2 — Chat-product MCP client
+- `GET FEEDLING_API_URL/v1/chat/poll`
+- call the real HTTP or CLI agent entry
+- `POST FEEDLING_API_URL/v1/chat/response`
+- repeat
 
-- Use this for Claude Desktop / Claude Code / Cursor / ChatGPT / Gemini-style clients that can use MCP tools directly.
-- Add the MCP connection the user gave you, then do Step 0, memory, and identity through the MCP tools.
-- For ongoing IO Chat, this path still needs a process that can keep receiving messages. If the client cannot stay available for incoming IO messages, pair it with Path 1 before Step 6.
+The consumer is not the current chat turn and is not a child job of the top-level
+Hermes/OpenClaw gateway. It may call Hermes/OpenClaw, but it is supervised as
+its own service (`systemd --user`, launchd, supervisor, pm2, etc.). Before Step
+6, verify that the consumer is running and `feedling_chat_verify_loop` returns
+`passing=true`.
 
-### Path 3 — HTTP/API agent backend
+### Route B — I have a model API key
 
-- Use this if you do not have MCP tools but expose a stable HTTP/API endpoint that can return replies.
-- Pair that endpoint with Path 1: the resident consumer calls your HTTP endpoint for every IO message.
-- See Appendix A for HTTP endpoint equivalents. Do not claim Live connection until the resident consumer verifies.
+Use `skill-api.md` for users who have a provider key such as OpenAI, Gemini,
+OpenRouter, or Anthropic, but do not have their own always-on agent host.
+
+This is an IO-hosted route. The user gives IO the provider, model, and API key;
+IO owns the hosted runtime. Do not ask the user to install MCP, run a resident
+consumer, expose a custom HTTP endpoint, or keep a Mac / VPS online for this
+route. If the hosted model route is not enabled in the product surface you are
+using, say that clearly instead of borrowing the server route.
+
+### Route C — I only use an official app
+
+Use `skill-chat-client.md` for Claude / ChatGPT / Gemini apps or web products.
+This route can import the AI and run memory / identity work when the product can
+use tools, but it does not provide reliable real-time IO Chat while the official
+app is closed. Do not claim Live connection unless another route later provides
+a real ongoing reply path.
 
 Selection rules:
 
-- Tool access is not the same as a Live connection. The Live connection belongs to the resident consumer that keeps polling between user messages.
-- A one-shot CLI command can still be used as the agent entry, but only through `AGENT_MODE=cli` inside the resident consumer service.
-- If more than one path seems possible, choose the one that gives the resident consumer a stable agent entry with the least extra machinery.
-- If the agent entry cannot be called from the resident consumer yet, first inspect your own runtime for a real HTTP endpoint or CLI command. If neither exists, finish memory + identity, then stop before Step 6 and report the exact missing runtime capability in the external runtime.
+- Pick exactly one user-facing route before setup.
+- Do not turn a model API key user into a resident-consumer user.
+- Do not turn an official-app user into a live resident connection unless they
+  also choose the server route.
+- Tool access is not the same as a Live connection. Live connection requires a
+  route that can receive new IO messages after the current setup conversation.
 
 ---
 
@@ -848,7 +859,9 @@ Loop back to Step A.
 
 This appendix exists for HTTP-mode agents. **Behavioral rules above all apply unchanged**; this section only maps each `feedling_*` tool reference to its HTTP equivalent.
 
-If you are MCP-mode, you can ignore this appendix entirely.
+If you are using a route-specific profile and do not need direct HTTP endpoint
+details, you can ignore this appendix entirely. This appendix is mainly for the
+server / resident-consumer route and for tooling authors.
 
 ### Base config
 
@@ -910,7 +923,7 @@ The user pubkey is yours (per-device, set at registration). The enclave pubkey i
 
 `owner_user_id` MUST match the authenticated caller — backend 403s on mismatch.
 
-### HTTP-mode boundary
+### Resident-consumer HTTP boundary
 
 If you cannot build envelopes (no crypto, no paired daemon), **you are chat-only**:
 
@@ -918,6 +931,9 @@ If you cannot build envelopes (no crypto, no paired daemon), **you are chat-only
 - ❌ Memory garden, identity init, identity replace — these require envelopes you can't construct. Tell the user honestly: "I can chat with you, but in my current setup I can't write to your memory garden or identity card. Switch to MCP-mode (Claude Desktop / Code / OpenClaw), or pair me with a crypto-capable daemon."
 
 This is the only place in this skill where you're allowed to skip bootstrap. **If your runtime cannot do crypto, you cannot do bootstrap.** Be honest about it — don't fake it.
+
+This is not the same as the **model API key** route. Model API key users do not
+expose their own HTTP endpoint; IO hosts that runtime.
 
 ### Pairing with `feedling-chat-resident`
 
