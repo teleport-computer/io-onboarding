@@ -8,11 +8,10 @@ When something doesn't work — read this first. If you're still stuck, ping us 
 
 ### 0. 先确认你走的是哪条路线
 
-IO 现在分三条服务方式：
+IO 现在分两条服务方式：
 
 - **我有自己的服务器**：VPS / Mac mini 等一直在线的主机，可能使用 OpenClaw / Hermes。需要独立 IO resident consumer service。
-- **我有模型 API key**：OpenAI / Gemini / OpenRouter / Anthropic。由 IO 托管，不需要 MCP 命令，也不需要 resident consumer。
-- **我只用官方 App**：Claude / ChatGPT / Gemini 等 app 或网页。目前可导入 AI，暂不支持可靠实时在线。
+- **我有模型 API key**：OpenAI / Gemini / OpenRouter / Anthropic。由 IO 托管，不需要 resident consumer。
 
 如果你只是有 OpenAI / Gemini / OpenRouter / Anthropic 的 key，不要照 server 路线去装 bridge、systemd、launchd 或 resident consumer。
 
@@ -22,13 +21,13 @@ IO 现在分三条服务方式：
 
 **排查顺序：**
 
-1. **MCP 连接到位了吗？** 在你的 agent 客户端里手动确认 MCP server 显示为已连接（不同客户端的 UI 不一样，但都会有"已连接 / 工具列表"的提示）。
+1. **resident consumer 起来了吗？** 确认你的 IO resident consumer service（或托管模型路线）正在运行，并且在用这一次 onboarding 的 `FEEDLING_API_KEY` 轮询 `FEEDLING_API_URL/v1/chat/poll`。
 
 2. **Agent 输出 Step 0 了吗？** Skill 要求 agent 在做任何事之前**先输出 Step 0 三行**（earliest message / name / memorable moments count）。如果 agent 直接开始写 identity 卡而没有 Step 0，说明它跳过了。让它"重新从 Step 0 开始，按 skill 要求逐字输出三行"。
 
 3. **Skill 真的被读了吗？** 让 agent 复述："你 fetch 了 skill.md 后，第一个动作是什么？" 正确答案是"输出 Step 0 三行"。复述不出来 = 它跳过了 fetch，让它重 fetch。
 
-4. **Agent 收到了 401？** 让 agent 调 `feedling_chat_get_history` 看响应。401 = MCP key 没传过去，重连 MCP server。
+4. **Agent 收到了 401？** 让 agent 调 `feedling_chat_get_history`（即 `GET /v1/chat/history`）看响应。401 = `FEEDLING_API_KEY` 没传过去或已失效，用最新 key 重新配置 resident consumer。
 
 5. **空白页等几分钟之后会出现 "STUCK?" 区块**：里面有一段 debug prompt 直接复制给 agent，会自检报告卡在哪步。
 
@@ -115,10 +114,10 @@ iOS 上的信号：进度条里 "Chat loop" 那一行显示 `send a message →`
 
 - **resident consumer 没跑起来**——确认 `feedling-chat-resident` / IO resident consumer service 当前正在运行，并且使用的是这一次 onboarding 的 `FEEDLING_API_KEY`。
 - **consumer 没有轮询正确 API**——日志应该看到 `GET https://api.feedling.app/v1/chat/poll` 或自托管 API 的同等路径。
-- **API URL 配错**——`/v1/chat/poll` 必须走 `https://api.feedling.app`。如果日志里是 `https://mcp.feedling.app/v1/chat/poll`，就是错的；`mcp.feedling.app` 只用于 MCP SSE。
+- **API URL 配错**——`/v1/chat/poll` 必须走 `https://api.feedling.app`（自托管则是你自己的 API host）。确认日志里的 host 正确。
 - **agent 入口没配置好**——HTTP 模式只适合真实 resident HTTP endpoint；Hermes API server 要用 `AGENT_HTTP_PROTOCOL=openai` + `/v1/chat/completions`。没有真实 HTTP endpoint 时用 CLI；Hermes / OpenClaw 默认设置 `HERMES_HOME=<真实常驻 agent 的同一个 profile>`，并用 `AGENT_CLI_CMD=hermes chat -Q --source tool --max-turns 60 -q "{message}"`，consumer 会保存 `session_id` 并用 `--resume` 续接。consumer 必须能用同一个环境调用到真实 agent，而不是只在手动 shell 里能跑；也不要把 `{message}` 包进一段新人格 prompt。
 - **CLI PATH / venv 不一致**——手动运行 `hermes` 或其他命令成功，不代表 resident service 里也能找到它。把 `AGENT_CLI_CMD` 写成绝对路径，或在 service env 里写明 PATH / venv。
-- **消息解密失败**——日志如果出现 `user message has no plaintext content`，确认 `FEEDLING_MCP_URL` 或等价解密来源已配置，且当前 key 可用。
+- **消息解密失败**——日志如果出现 `user message has no plaintext content`，确认 consumer 能访问解密来源（`FEEDLING_API_URL` 的 enclave decrypt 代理），且当前 `FEEDLING_API_KEY` 可用。
 - **图片看不到**——图片消息的文本内容本来就是空的，JPEG 在 `image_b64`。新版 `feedling-chat-resident` 会把图片作为 OpenAI `image_url`、simple HTTP `images[]`，或 CLI 本地图片路径传给 agent。确认正在运行的是新版 consumer；CLI runtime 还要确认它能打开本地图片路径，必要时在 `AGENT_CLI_CMD` 中使用 `{image_path}` / `{image_paths}`。
 - **key 已旧或账号被 reset**——401 / `user_not_found` 说明 agent 还 pin 着旧 key。回到 iOS onboarding 或 Settings 复制新的 resident consumer config，替换 `FEEDLING_API_KEY` 后再连。
 - **consumer 回了模板而不是真 agent**——如果用户看到“send that once more”或“我收到了，继续说”这类模板，说明 consumer 没有调到真实 agent，或 fallback 没有关闭。生产 onboarding 保持 `SEND_FALLBACK_ON_AGENT_ERROR=false`；先修 HTTP/CLI agent entry，再跑 verify。
@@ -143,16 +142,14 @@ iOS 上的信号：进度条里 "Chat loop" 那一行显示 `send a message →`
 
 ### 12. 跑了 Delete Account & Reset 之后 agent 每个 tool call 都返回 401 `user_not_found`
 
-**含义**：Settings → Delete Account & Reset 把服务端账号删了、本地凭据清了、并注册了一个新账号；但你的 agent runtime（Claude.ai / Claude Desktop / Hermes / 等）里还 pin 着旧 key——旧 key 对应的 user 已经不存在了，所以所有 `tools/call` 都 401。
+**含义**：Settings → Delete Account & Reset 把服务端账号删了、本地凭据清了、并注册了一个新账号；但你的 resident consumer / agent runtime（Hermes / OpenClaw / 自托管 resident 等）里还 pin 着旧 `FEEDLING_API_KEY`——旧 key 对应的 user 已经不存在了，所以所有请求都 401。
 
 iOS 上的信号：reset 完成时会弹出 "Your old key is dead." 的 sheet，里面有新的重新连接信息和一个 COPY 按钮。如果你当时点了 "I'll update later"，现在回到 Chat onboarding 或 Settings → Storage 重新拿。
 
 **修法：**
 
 1. iOS app → Chat onboarding → 按路径复制连接信息。
-2. 把旧配置换成新的：
-   - **Claude Code / Claude.ai / Claude Desktop / ChatGPT / Gemini 这类聊天工具**：先移除旧 feedling MCP，再 paste 新的 `claude mcp add feedling …` 或等价 MCP URL。
-   - **Hermes / OpenClaw / 自己起的 resident**：使用新的 resident consumer config 更新 `feedling-chat-resident` / IO resident consumer service：`FEEDLING_API_URL=https://api.feedling.app`、新的 `FEEDLING_API_KEY`、可选 `FEEDLING_MCP_URL`，以及你的 `AGENT_MODE` / agent entry。
+2. 把旧配置换成新的：使用新的 resident consumer config 更新 `feedling-chat-resident` / IO resident consumer service：`FEEDLING_API_URL=https://api.feedling.app`、新的 `FEEDLING_API_KEY`，以及你的 `AGENT_MODE` / agent entry。
 3. 让 agent 重连，再发一条消息。它的 `feedling_bootstrap` 这次会返回 `first_time`——新账号是空的，让它重走 bootstrap。
 
 **注意：** 旧账号的 chat / identity / memory garden 已经在服务端被删除了，找不回来。如果你只想轮换 key 但保留数据，**不要**用 Delete Account & Reset，用 Settings → Storage → "Regenerate API Key"。
@@ -163,7 +160,7 @@ iOS 上的信号：reset 完成时会弹出 "Your old key is dead." 的 sheet，
 
 - iOS 版本
 - IO build number（Settings 最底部 `v 0.5.0` 那种）
-- 你用的 agent 客户端（Claude Code / Desktop / claude.ai / 其他）
+- 你用的 agent runtime（Hermes / OpenClaw / Mac mini 或 VPS 上的 Claude Code / 模型 API key / 其他）
 - 卡在哪一步（参考 quickstart 的 5 步 + 如果在 bootstrap 中，是哪个 Pass）
 - Health Check 页截图
 
@@ -173,11 +170,10 @@ iOS 上的信号：reset 完成时会弹出 "Your old key is dead." 的 sheet，
 
 ### 0. First confirm your route
 
-IO now has three service methods:
+IO now has two service methods:
 
 - **I have my own server**: a VPS / Mac mini or other always-on host, possibly using OpenClaw / Hermes. Requires an independent IO resident consumer service.
-- **I have a model API key**: OpenAI / Gemini / OpenRouter / Anthropic. Hosted by IO; no MCP command or resident consumer is required.
-- **I only use an official app**: Claude / ChatGPT / Gemini apps or web. Import-only for now; reliable realtime online chat is not supported yet.
+- **I have a model API key**: OpenAI / Gemini / OpenRouter / Anthropic. Hosted by IO; no resident consumer is required.
 
 If you only have an OpenAI / Gemini / OpenRouter / Anthropic key, do not follow the server route and do not install bridge / systemd / launchd / resident consumer pieces.
 
@@ -187,13 +183,13 @@ If you only have an OpenAI / Gemini / OpenRouter / Anthropic key, do not follow 
 
 **Triage in order:**
 
-1. **Is the MCP connection up?** In your agent client, verify the MCP server shows as connected.
+1. **Is the resident consumer running?** Confirm your IO resident consumer service (or the hosted model route) is up and polling `FEEDLING_API_URL/v1/chat/poll` with this onboarding's `FEEDLING_API_KEY`.
 
 2. **Did the agent output Step 0?** The skill requires the agent to output the **Step 0 three lines** (earliest message / name / memorable moments count) before any tool call. If the agent jumped straight to writing the identity card without Step 0, it skipped. Tell it: "Start again from Step 0 — output the three lines verbatim before doing anything else."
 
 3. **Did the agent actually read the skill?** Have it recap: "After fetching skill.md, what's your first action?" Correct answer is "output the Step 0 three lines." If it can't recap, it skipped the fetch — tell it to re-fetch.
 
-4. **Is the agent getting 401?** Have the agent call `feedling_chat_get_history` and check. 401 = key didn't propagate; reconnect the MCP server.
+4. **Is the agent getting 401?** Have the agent call `feedling_chat_get_history` (i.e. `GET /v1/chat/history`) and check. 401 = `FEEDLING_API_KEY` didn't propagate or is stale; reconfigure the resident consumer with the latest key.
 
 5. **After a few minutes the empty state shows a "STUCK?" block**: copy the debug prompt to your agent for self-diagnosis.
 
@@ -289,9 +285,8 @@ agent's HTTP or CLI entry, then POSTs the reply to
   the IO resident consumer service is running with this onboarding key.
 - **The consumer is not polling the correct API** — logs should show
   `GET https://api.feedling.app/v1/chat/poll` or the self-hosted equivalent.
-- **Wrong API URL** — `/v1/chat/poll` must use `https://api.feedling.app`.
-  If logs show `https://mcp.feedling.app/v1/chat/poll`, fix the consumer env;
-  `mcp.feedling.app` is only the MCP SSE host.
+- **Wrong API URL** — `/v1/chat/poll` must use `https://api.feedling.app`
+  (or your own API host when self-hosted). Confirm the host in the logs is correct.
 - **Agent entry is not configured** — HTTP mode is only for a real resident
   HTTP endpoint. Hermes API server uses `AGENT_HTTP_PROTOCOL=openai` plus
   `/v1/chat/completions`. Without a real HTTP endpoint, use CLI; for
@@ -305,8 +300,8 @@ agent's HTTP or CLI entry, then POSTs the reply to
   new persona prompt. Use absolute paths or set the
   service PATH / venv explicitly.
 - **Decryption failed** — if logs say `user message has no plaintext content`,
-  configure `FEEDLING_MCP_URL` or the equivalent decrypt source with the current
-  key.
+  confirm the consumer can reach the decrypt source (the enclave decrypt proxy on
+  `FEEDLING_API_URL`) and that the current `FEEDLING_API_KEY` is valid.
 - **Images are not visible** — image messages have empty text by design; the
   JPEG lives in `image_b64`. Current `feedling-chat-resident` passes images as
   OpenAI `image_url`, simple HTTP `images[]`, or CLI local image paths. Confirm
@@ -351,16 +346,14 @@ If you're on the Keychain-fix build (commit `ee6bd78` or later) this shouldn't r
 
 ### 12. After Delete Account & Reset, every tool call returns 401 `user_not_found`
 
-**Meaning**: Settings → Delete Account & Reset deleted your account server-side, wiped local credentials, and auto-registered a fresh account — but your agent runtime (Claude.ai / Claude Desktop / Hermes / etc.) is still pinned to the OLD key. The old user no longer exists, so every `tools/call` returns 401.
+**Meaning**: Settings → Delete Account & Reset deleted your account server-side, wiped local credentials, and auto-registered a fresh account — but your resident consumer / agent runtime (Hermes / OpenClaw / self-hosted resident, etc.) is still pinned to the OLD `FEEDLING_API_KEY`. The old user no longer exists, so every request returns 401.
 
 iOS signal: when reset finishes, a "Your old key is dead." sheet appears with fresh reconnection details and a COPY button. If you tapped "I'll update later," grab them again from Chat onboarding or Settings → Storage.
 
 **Fix:**
 
 1. iOS app → Chat onboarding → copy the path-specific connection details.
-2. Replace the old config with the new one:
-   - **Claude Code / Claude.ai / Claude Desktop / ChatGPT / Gemini-style chat tools**: remove the old feedling MCP config, then paste the new `claude mcp add feedling …` line or equivalent MCP URL.
-   - **Hermes / OpenClaw / self-hosted resident**: use the fresh resident consumer config to update `feedling-chat-resident` / the IO resident consumer service: `FEEDLING_API_URL=https://api.feedling.app`, the new `FEEDLING_API_KEY`, optional `FEEDLING_MCP_URL`, and your `AGENT_MODE` / agent entry.
+2. Replace the old config with the new one: use the fresh resident consumer config to update `feedling-chat-resident` / the IO resident consumer service: `FEEDLING_API_URL=https://api.feedling.app`, the new `FEEDLING_API_KEY`, and your `AGENT_MODE` / agent entry.
 3. Reconnect the agent and send a message. Its next `feedling_bootstrap` will return `first_time` — the new account is empty; let it re-walk the bootstrap flow.
 
 **Note:** The old account's chat / identity / memory garden was deleted server-side and can't be recovered. If you want to rotate the key without losing data, **don't** use Delete Account & Reset — use Settings → Storage → "Regenerate API Key" instead.
@@ -371,6 +364,6 @@ Send us:
 
 - Your iOS version
 - The IO build number (Settings, bottom — looks like `v 0.5.0`)
-- Which agent client you're using
+- Which agent runtime you're using (Hermes / OpenClaw / Claude Code on a Mac mini or VPS / model API key / other)
 - Which step you're stuck on (reference the 5-step quickstart, or which Pass if in bootstrap)
 - A screenshot of the Health Check page

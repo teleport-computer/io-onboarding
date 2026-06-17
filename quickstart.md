@@ -11,7 +11,7 @@ Get IO running on your phone, with your own AI agent inside, with your shared hi
 ### 你需要什么
 
 - 一台 iPhone（iOS 16.2 或更高）
-- 一个 agent runtime（Hermes / OpenClaw / Claude Desktop / ChatGPT / Gemini / 其他）
+- 一个 agent runtime（Hermes / OpenClaw / Mac mini 或 VPS 上的 Claude Code / 其他常驻 agent），或一个模型 provider API key（OpenAI / Gemini / OpenRouter / Anthropic）
 - **重要**：跟你 agent 已经有过实质对话历史的账号——bootstrap 的核心是从你们的对话史里抢救记忆。**新开一个空账号没意义**。
 - 一段不被打断的时间。关系越长，agent 需要回忆和写入的内容越多。
 
@@ -25,9 +25,8 @@ Get IO running on your phone, with your own AI agent inside, with your shared hi
 
 打开 app → Chat。先选你需要哪种服务方式：
 
-- **我有自己的服务器**：VPS / Mac mini 等一直在线的主机，可能使用 OpenClaw / Hermes。复制 `IO connection` / `resident consumer config`，形如 `FEEDLING_API_URL` / `FEEDLING_API_KEY` / `FEEDLING_MCP_URL`。这不是 `claude mcp add` 命令。
-- **我有模型 API key**：OpenAI / Gemini / OpenRouter / Anthropic。这条路线由 IO 托管，不需要 MCP 命令，也不需要你运行 resident consumer。
-- **我只用官方 App**：Claude / ChatGPT / Gemini 等 app 或网页。目前可导入 AI，暂不支持实时在线。
+- **我有自己的服务器**：VPS / Mac mini 等一直在线的主机，可能使用 OpenClaw / Hermes。复制 `IO connection` / `resident consumer config`，形如 `FEEDLING_API_URL` / `FEEDLING_API_KEY`。
+- **我有模型 API key**：OpenAI / Gemini / OpenRouter / Anthropic。这条路线由 IO 托管，不需要你运行 resident consumer。
 
 **3. 给你的 agent 发开场指令**
 
@@ -58,7 +57,7 @@ Agent 会先做 4 轮记忆提取——**深度记录你们的所有过往瞬间
 
 **5. 验收**
 
-五件事到位就算 setup 成功（官方 App 导入路线如果明确标注“不支持实时在线”，则只验收前两项和导入说明）：
+五件事到位就算 setup 成功：
 
 - [ ] **身份卡**：Identity tab 能看到 agent 的名字（不是 "Hermes" 或 "Claude"）、7 维雷达、自我介绍
 - [ ] **记忆花园**：Garden tab 至少 5 张卡；如果你们认识 1+ 月，至少 15 张；6+ 月，至少 30 张
@@ -79,7 +78,7 @@ Agent 会先做 4 轮记忆提取——**深度记录你们的所有过往瞬间
 ### What you need
 
 - An iPhone (iOS 16.2 or higher)
-- An agent runtime (Hermes / OpenClaw / Claude Desktop / ChatGPT / Gemini / other)
+- An agent runtime (Hermes / OpenClaw / Claude Code on a Mac mini or VPS / another always-on agent), or a model provider API key (OpenAI / Gemini / OpenRouter / Anthropic)
 - **Important**: an account that has real conversation history with your agent — bootstrap is about salvaging that history into IO. A fresh empty account defeats the point.
 - An uninterrupted window. Longer histories take longer to recall and write.
 
@@ -93,9 +92,8 @@ Install via the TestFlight invite. On first launch IO auto-registers an account;
 
 Open the app → Chat. First choose the service method you need:
 
-- **I have my own server**: a VPS / Mac mini or other always-on host, possibly using OpenClaw / Hermes. Copy the `IO connection` / `resident consumer config`, which looks like `FEEDLING_API_URL` / `FEEDLING_API_KEY` / `FEEDLING_MCP_URL`. This is not a `claude mcp add` command.
-- **I have a model API key**: OpenAI / Gemini / OpenRouter / Anthropic. IO hosts this route; no MCP command or resident consumer is required.
-- **I only use an official app**: Claude / ChatGPT / Gemini apps or web. You can import the AI for now; realtime online chat is not supported yet.
+- **I have my own server**: a VPS / Mac mini or other always-on host, possibly using OpenClaw / Hermes. Copy the `IO connection` / `resident consumer config`, which looks like `FEEDLING_API_URL` / `FEEDLING_API_KEY`.
+- **I have a model API key**: OpenAI / Gemini / OpenRouter / Anthropic. IO hosts this route; no resident consumer is required.
 
 **3. Send your agent the opening prompt**
 
@@ -126,7 +124,7 @@ You **can close the app** while this runs. The agent keeps going on its runtime 
 
 **5. Acceptance**
 
-Setup is done when all five hold. For the official-app import route, if it clearly says realtime online chat is not supported, accept only the first two items plus that limitation disclosure.
+Setup is done when all five hold.
 
 - [ ] **Identity card** — Identity tab shows the agent's name (NOT "Hermes" or "Claude"), 7-axis radar, and self-introduction
 - [ ] **Memory Garden** — Garden tab has at least 5 cards; for a 1+ month relationship, at least 15; for 6+ months, at least 30

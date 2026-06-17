@@ -10,7 +10,7 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 
 ## Your path
 
-- The user gives you resident consumer config: `FEEDLING_API_URL`, `FEEDLING_API_KEY`, and optionally `FEEDLING_MCP_URL` / `FEEDLING_MCP_KEY`. `FEEDLING_MCP_URL` is the MCP base URL, not a `claude mcp add ...` command.
+- The user gives you resident consumer config: `FEEDLING_API_URL` and `FEEDLING_API_KEY`.
 - Configure an independent `feedling-chat-resident` / IO resident consumer service with that config.
 - Before starting the service, install or update the official consumer code from `https://github.com/teleport-computer/feedling-mcp`. If a checkout already exists, run a fast-forward update (`git fetch origin main` then `git pull --ff-only origin main`). If that checkout is dirty or not from the official repo, use a fresh checkout and point `WorkingDirectory` / `ExecStart` at the fresh copy. In your external setup report, include the local HEAD and `origin/main`; they must match before Step 6.
 - Fill in the agent entry from your own runtime, then point the consumer at it through HTTP or CLI. Use HTTP only when you expose a real resident endpoint that reaches your actual agent session. Otherwise use CLI. For Hermes/OpenClaw with no HTTP endpoint, set `HERMES_HOME` to the same profile/home used by the real running resident agent. Prefer reading it from the actual service environment (`systemctl --user cat/show hermes-gateway`, or `/proc/<MainPID>/environ`) instead of guessing from profile folder names. Then use the default CLI candidate `hermes chat -Q --source tool --max-turns 60 -q "{message}"`; the consumer stores the first `session_id` and resumes later turns with `--resume`. For Claude Code CLI, use `claude --print --output-format json "{message}"`; the consumer reads Claude Code's `session_id` from JSON output and resumes later turns with `--resume`. Use an absolute executable path if the service environment cannot find the CLI.
@@ -35,7 +35,7 @@ feedling-chat-resident
 
 中文同义规则：
 
-- 用户给你的连接信息是 resident consumer config：`FEEDLING_API_URL`、`FEEDLING_API_KEY`，以及可选的 `FEEDLING_MCP_URL` / `FEEDLING_MCP_KEY`。`FEEDLING_MCP_URL` 是 MCP base URL，不是 `claude mcp add ...` 命令。
+- 用户给你的连接信息是 resident consumer config：`FEEDLING_API_URL` 和 `FEEDLING_API_KEY`。
 - 用这些信息配置一个独立的 `feedling-chat-resident` / IO resident consumer service。
 - 启动 service 之前，先从 `https://github.com/teleport-computer/feedling-mcp` 安装或更新官方 consumer 代码。已有 checkout 时，用 fast-forward 更新（`git fetch origin main` 然后 `git pull --ff-only origin main`）。如果 checkout 有本地改动或不是官方 repo，就使用新的干净 checkout，并让 `WorkingDirectory` / `ExecStart` 指向这份新代码。在外部 setup 汇报里写清楚 local HEAD 和 `origin/main`；两者一致后才能进入 Step 6。
 - agent 入口由你根据自己的 runtime 填出来，不应该要求用户提供。有真实 resident HTTP endpoint 才用 HTTP；否则用 CLI。Hermes/OpenClaw 没有 HTTP endpoint 时，把 `HERMES_HOME` 设成你真实正在运行的常驻 agent 使用的同一个 profile/home。优先从真实 service 环境读取（`systemctl --user cat/show hermes-gateway`，或 `/proc/<MainPID>/environ`），不要靠 profile 文件夹名字猜。然后使用默认 CLI 候选：`hermes chat -Q --source tool --max-turns 60 -q "{message}"`；consumer 会保存第一次返回的 `session_id`，后续用 `--resume` 续接。Claude Code CLI 使用 `claude --print --output-format json "{message}"`；consumer 会从 JSON output 读取 Claude Code 的 `session_id`，后续用 `--resume` 续接。service 环境找不到 CLI 时改用绝对路径。

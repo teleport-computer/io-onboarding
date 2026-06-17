@@ -5,8 +5,8 @@ always-on agent server.
 
 Examples: OpenAI, Gemini, OpenRouter, Anthropic.
 
-This route is hosted by IO. The user does **not** need to install MCP, run a
-resident consumer service, expose an HTTP endpoint, or keep a Mac / VPS online.
+This route is hosted by IO. The user does **not** need to run a resident
+consumer service, expose an HTTP endpoint, or keep a Mac / VPS online.
 
 Read the shared base skill for Memory Garden and identity standards:
 
@@ -19,7 +19,6 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 - The Memory Garden and identity card still use the same quality bar as the
   base skill: no invented memories, no invented day count, and no runtime-label
   persona names.
-- There is no `claude mcp add ...` command on this path.
 - There is no independent `feedling-chat-resident` service on this path.
 - There is no custom webhook or user-hosted HTTP endpoint on this path.
 - If a setup screen asks for provider details, collect only provider, model,
@@ -47,8 +46,8 @@ The model API key route is ready only when all of these are true:
 
 例子：OpenAI、Gemini、OpenRouter、Anthropic。
 
-这条路线由 IO 托管。用户不需要安装 MCP，不需要跑 resident consumer
-service，不需要暴露 HTTP endpoint，也不需要一直开着 Mac / VPS。
+这条路线由 IO 托管。用户不需要跑 resident consumer service，不需要暴露
+HTTP endpoint，也不需要一直开着 Mac / VPS。
 
 共同底座仍然读这里：
 
@@ -60,7 +59,6 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 - IO 负责 chat 和 proactive message 的 runtime loop。
 - Memory Garden 和 identity 的质量标准仍然和 base skill 一样：不能编造记忆，
   不能编造在一起的天数，不能把 runtime label 当作人格名。
-- 这条路径没有 `claude mcp add ...`。
 - 这条路径没有独立 `feedling-chat-resident` service。
 - 这条路径没有用户自建 webhook 或 HTTP endpoint。
 - 如果 setup 页面要求 provider 信息，只收 provider、model、API key。

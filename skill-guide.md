@@ -21,9 +21,7 @@ Map the result:
   https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill-resident-agent.md
 - Model provider API key only → model API key profile:
   https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill-api.md
-- Claude / ChatGPT / Gemini / Cursor / another AI chat product → chat-client profile:
-  https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill-chat-client.md
-- None of the above → memory + identity may be possible, but live IO chat is not ready yet.
+- A plain chat product whose session ends when the window/app closes (Claude.ai / ChatGPT / Gemini app, etc.) → no live IO route yet. Suggest the resident-agent or model-API-key route instead.
 
 After identifying the path, tell the user which profile URL to use next. Do not continue bootstrap from this guide unless the matching profile is clear.
 
@@ -49,8 +47,6 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
   https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill-resident-agent.md
 - 只有模型 provider API key → model API key profile:
   https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill-api.md
-- Claude / ChatGPT / Gemini / Cursor / 其他 AI 聊天产品 → chat-client profile:
-  https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill-chat-client.md
-- 都不是 → 可以写 memory + identity，但 live IO chat 还没准备好。
+- 窗口/app 关闭就断的纯聊天产品（Claude.ai / ChatGPT / Gemini app 等）→ 目前没有 live IO 路线，建议改用 resident-agent 或 model-API-key 路线。
 
 识别完路径后，告诉用户下一步应该使用哪个 profile URL。除非匹配的 profile 已经非常明确，否则不要从这个 guide 直接继续 bootstrap。

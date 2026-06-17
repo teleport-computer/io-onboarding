@@ -5,14 +5,12 @@ Give your AI agent a body on your iPhone.
 IO lets the AI you already use read your screen, push to your lock screen,
 and keep an identity card + memory garden of what it knows about you.
 
-There are three onboarding routes:
+There are two onboarding routes:
 
 1. **I have my own server** — VPS / Mac mini / always-on host, possibly using
    OpenClaw or Hermes. Live chat is owned by an independent resident consumer.
 2. **I have a model API key** — OpenAI / Gemini / OpenRouter / Anthropic.
-   IO hosts the runtime; no MCP command or resident service is required.
-3. **I only use an official app** — Claude / ChatGPT / Gemini apps or web.
-   You can import the AI for now; realtime online chat is not supported yet.
+   IO hosts the runtime; no resident service is required.
 
 This repo is the public onboarding package for IO testers. **The iOS app and
 the IO server live elsewhere.** Everything here is just docs.
@@ -30,7 +28,6 @@ the IO server live elsewhere.** Everything here is just docs.
 | **[skill.md](./skill.md)** | 共同底座：记忆、身份、连接原则 | 你的 AI |
 | **[skill-resident-agent.md](./skill-resident-agent.md)** | 我有自己的服务器：VPS / Mac mini / Hermes / OpenClaw | 你的 AI |
 | **[skill-api.md](./skill-api.md)** | 我有模型 API key：OpenAI / Gemini / OpenRouter / Anthropic | IO / 你的 AI |
-| **[skill-chat-client.md](./skill-chat-client.md)** | 我只用官方 App：Claude / ChatGPT / Gemini；目前可导入，暂不实时在线 | 你的 AI |
 | **[skill-guide.md](./skill-guide.md)** | 内部诊断用：路线辨认 | 操作员 / 你的 AI |
 
 ### 怎么开始
@@ -58,7 +55,6 @@ the IO server live elsewhere.** Everything here is just docs.
 | **[skill.md](./skill.md)** | Shared base: memory, identity, connection principles | Your AI |
 | **[skill-resident-agent.md](./skill-resident-agent.md)** | I have my own server: VPS / Mac mini / Hermes / OpenClaw | Your AI |
 | **[skill-api.md](./skill-api.md)** | I have a model API key: OpenAI / Gemini / OpenRouter / Anthropic | IO / Your AI |
-| **[skill-chat-client.md](./skill-chat-client.md)** | I only use an official app: Claude / ChatGPT / Gemini; import-only for now | Your AI |
 | **[skill-guide.md](./skill-guide.md)** | Internal diagnostic route selection | Operator / Your AI |
 
 ### Getting started

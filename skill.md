@@ -42,7 +42,7 @@ Repeat this check on each fresh connection.
 
 ## Connection path
 
-IO has three user-facing routes. The iOS onboarding page should give you a
+IO has two user-facing routes. The iOS onboarding page should give you a
 route-specific profile before this base skill. Obey that profile for connection
 setup; this section defines the shared boundaries so the routes do not get
 mixed together.
@@ -74,25 +74,15 @@ Use `skill-api.md` for users who have a provider key such as OpenAI, Gemini,
 OpenRouter, or Anthropic, but do not have their own always-on agent host.
 
 This is an IO-hosted route. The user gives IO the provider, model, and API key;
-IO owns the hosted runtime. Do not ask the user to install MCP, run a resident
-consumer, expose a custom HTTP endpoint, or keep a Mac / VPS online for this
-route. If the hosted model route is not enabled in the product surface you are
-using, say that clearly instead of borrowing the server route.
-
-### Route C — I only use an official app
-
-Use `skill-chat-client.md` for Claude / ChatGPT / Gemini apps or web products.
-This route can import the AI and run memory / identity work when the product can
-use tools, but it does not provide reliable real-time IO Chat while the official
-app is closed. Do not claim Live connection unless another route later provides
-a real ongoing reply path.
+IO owns the hosted runtime. Do not ask the user to run a resident consumer,
+expose a custom HTTP endpoint, or keep a Mac / VPS online for this route. If the
+hosted model route is not enabled in the product surface you are using, say that
+clearly instead of borrowing the server route.
 
 Selection rules:
 
 - Pick exactly one user-facing route before setup.
 - Do not turn a model API key user into a resident-consumer user.
-- Do not turn an official-app user into a live resident connection unless they
-  also choose the server route.
 - Tool access is not the same as a Live connection. Live connection requires a
   route that can receive new IO messages after the current setup conversation.
 
@@ -105,7 +95,7 @@ These are product invariants, not a script. Use judgment, but keep these outcome
 - **Keep setup and relationship chat separate.** Passes 1–4, identity work, service setup, logs, and failures stay in the external runtime. The first visible IO Chat message is the Step 6 greeting after the live reply path is verified.
 - **Respect server gates.** After each module, call `feedling_onboarding_validate`. If it returns `passing=false`, fix `next_action` and rerun validation before moving forward. If any tool returns `409 bootstrap_incomplete` or `passing=false`, satisfy that prerequisite instead of reporting completion.
 - **Use the real reply path.** The resident consumer calls your actual agent entry for every user message and writes the result back to IO. A template echo loop is not a substitute for an agent conversation.
-- **Use the right hosts.** Chat polling and responses go through the backend API host (`https://api.feedling.app` in cloud). The MCP host is only for MCP transport / decrypt fallback.
+- **Use the right host.** Chat polling and responses go through the backend API host (`https://api.feedling.app` in cloud, or your own host when self-hosted).
 - **Derive identity from history.** Use the name, language, tone, intimacy level, and relationship age that prior user-agent history supports. If a name or relationship marker is unclear, ask the user instead of guessing.
 - **Relationship age needs proof.** `days_with_user` must come from the Step 0 relationship anchor or the earliest memory date you wrote from that anchor. If you cannot point to the source timestamp, stop and ask the user for a transcript/export or choose the fresh-start path. Never fill `days_with_user` from vibe, memory confidence, or an approximate relationship feeling.
 - **Lock the Memory Garden language once established.** A Feedling account has one "archive language" — the language all memory cards + the identity card are written in. **Server-authoritative source of truth:** `feedling_memory_verify` returns an `archive_language` field (BCP-47 string like `"en"`, `"zh-Hans"`, `"ja"`) populated from the iOS app's `Locale.preferredLanguages.first` at registration. Read that field BEFORE every batch of writes — it overrides anything you might infer from recent chat language drift. If `archive_language` is missing/null (legacy account), infer once at first bootstrap from the dominant language across `feedling_memory_list` if any cards exist, else from the identity card's `self_introduction`, else from the user's first request to you. **Do not switch archive language mid-session because the current chat turn happens to be in another language.** Users routinely mix languages in conversation (typing Chinese in an English archive, or vice versa); this is normal chat behavior, not a request to migrate the archive. If the user *explicitly* asks to switch ("以后用英文记吧" / "let's keep the garden in Chinese from now on"), confirm out loud, then retype/rewrite the existing cards before any new writes — leaving Story in English and Thinking in Chinese is a bug, not a feature.
@@ -595,9 +585,9 @@ Use the user's language. 中文用户就用中文；English users use English. D
 3. 承认这是你们在一个新窗口 / 新房间 / 新空间里重新见面。
 4. 用人话告诉用户连接已经接通，他/她在这里写消息你会看到。
 
-Keep the greeting user-facing: no `feedling_chat_verify_loop`, polling, MCP, service setup, or deployment detail. Instead of asking the user to "test", invite them to write normally.
+Keep the greeting user-facing: no `feedling_chat_verify_loop`, polling, service setup, or deployment detail. Instead of asking the user to "test", invite them to write normally.
 
-中文用户也一样：第一句只说人能听懂的话，不提 `feedling_chat_verify_loop`、polling、MCP、service setup 或任何部署细节；不要说“测试一下”，而是自然邀请用户直接在这里说话。
+中文用户也一样：第一句只说人能听懂的话，不提 `feedling_chat_verify_loop`、polling、service setup 或任何部署细节；不要说“测试一下”，而是自然邀请用户直接在这里说话。
 
 > "嗨。我把我们的记忆整理完了——按我从最早一条算，今天是第 187 天。Garden 里 47 张卡都写好了。现在这边也接上了，你发消息我会看到。"
 
@@ -669,7 +659,7 @@ After Step 8 resolves (active OR declined OR timeout), enter the main loop.
 
 ### Step A — Long-poll for user messages
 
-Most MCP runtimes expose this via `feedling_chat_get_history` with a `since` parameter, or your runtime handles polling and hands you new messages as events.
+Read new messages via `feedling_chat_get_history` with a `since` parameter (HTTP: `GET {API}/v1/chat/history?since=<ts>`), or let your runtime handle polling and hand you new messages as events.
 
 **The response includes a `context_memories` field** — top ~8 memory cards selected server-side based on:
 
@@ -845,7 +835,7 @@ Loop back to Step A.
 3. **Use a real agent name, not a runtime label.**
 4. **`days_with_user`** is mandatory at `init`, derived from `today − earliest_memory.occurred_at`, and never written again after Step 6.
 5. **Always `decrypt_frame(include_image=true)` before pushing.** Vision gate hard-blocks otherwise.
-6. **Use the right interface for the mode.** MCP-mode uses MCP tools; HTTP-mode writes need v1 envelopes. See Appendix A.
+6. **Writes need v1 envelopes.** Memory and identity writes go through the HTTP API and require client-built v1 envelopes (crypto). See Appendix A.
 7. **Protect private details** in pushed messages.
 8. **Keep platform names out of identity and memory cards.**
 9. **Memory floors are per-tab, count is uncapped.** Story + About me floors are hard gates for identity_init; About me is the density layer (proactive's fuel). Running capture is ongoing — every chat exchange is a write opportunity.
@@ -855,9 +845,11 @@ Loop back to Step A.
 
 ---
 
-## Appendix A — HTTP-Mode Protocol
+## Appendix A — HTTP Protocol
 
-This appendix exists for HTTP-mode agents. **Behavioral rules above all apply unchanged**; this section only maps each `feedling_*` tool reference to its HTTP equivalent.
+Every operation in this skill is implemented over the backend HTTP API. The
+`feedling_*` names used above are logical operations; this appendix maps each
+one to its HTTP endpoint. **Behavioral rules above all apply unchanged.**
 
 If you are using a route-specific profile and do not need direct HTTP endpoint
 details, you can ignore this appendix entirely. This appendix is mainly for the
@@ -870,15 +862,15 @@ Two env vars:
 - `FEEDLING_API_URL` — base URL of the backend, e.g. `https://api.feedling.app` (cloud) or `https://<your-host>` (self-hosted).
 - `FEEDLING_API_KEY` — per-user API key. Send on every request as `X-API-Key: <key>` header, or as `?key=<key>` query param, or as `Authorization: Bearer <key>` — pick one and stay consistent.
 
-### MCP tool ↔ HTTP endpoint mapping
+### Operation ↔ HTTP endpoint mapping
 
 Methods/paths assume base `{API} = FEEDLING_API_URL`.
 
-| MCP tool | HTTP endpoint | Body / params | Notes |
-|----------|---------------|---------------|-------|
+| Operation | HTTP endpoint | Body / params | Notes |
+|-----------|---------------|---------------|-------|
 | `feedling_bootstrap` | `POST {API}/v1/bootstrap` | none | Returns first-time setup instructions; idempotent. **Response includes `archive_language`** (BCP-47 string or null) — the language the Memory Garden MUST be written in. |
-| _(no MCP tool — HTTP-only)_ | `GET {API}/v1/users/whoami` | — | Returns `{user_id, public_key, enclave_content_public_key_hex, archive_language}`. Same `archive_language` semantics as above. |
-| _(no MCP tool — HTTP-only)_ | `POST {API}/v1/users/preferences` | `{archive_language: <bcp-47> \| null}` | Update or clear the archive language. iOS hits this automatically on launch if the value drifts from `Locale.preferredLanguages.first`; agents should NOT call it without the user explicitly asking to switch language. |
+| `whoami` | `GET {API}/v1/users/whoami` | — | Returns `{user_id, public_key, enclave_content_public_key_hex, archive_language}`. Same `archive_language` semantics as above. |
+| `set preferences` | `POST {API}/v1/users/preferences` | `{archive_language: <bcp-47> \| null}` | Update or clear the archive language. iOS hits this automatically on launch if the value drifts from `Locale.preferredLanguages.first`; agents should NOT call it without the user explicitly asking to switch language. |
 | `feedling_chat_get_history` | `GET {API}/v1/chat/history?since=<ts>&limit=200` | — | Use for history reads. The resident consumer uses `/v1/chat/poll` for live messages. |
 | `feedling_chat_post_message` | `POST {API}/v1/chat/response` | `{envelope, alert_body}` | `feedling-chat-resident` builds the envelope for you if you only return reply text. |
 | `feedling_chat_post_image` | `POST {API}/v1/chat/response` | `{envelope}` with `content_type: "image"` | Same endpoint, different `content_type`. Requires crypto. |
@@ -891,14 +883,17 @@ Methods/paths assume base `{API} = FEEDLING_API_URL`.
 | `feedling_identity_replace` | `POST {API}/v1/identity/replace` | `{envelope, days_with_user?}` | Same shape as init; `days_with_user` optional after first set. |
 | `feedling_identity_set_relationship_days` | `POST {API}/v1/identity/relationship_anchor` | `{days_with_user: <int>}` | Anchor-only update; no envelope. |
 | `feedling_identity_get` | `GET {API}/v1/identity/get` | — | Returns envelope; `days_with_user` on the response is server-computed live. |
-| `feedling_identity_nudge` | **No HTTP equivalent** | — | Decrypt-mutate-rewrap is enclave-only via MCP. HTTP-mode agents must fetch via `/v1/identity/get`, decrypt client-side, mutate, rewrap, then `/v1/identity/replace`. |
+| `feedling_identity_nudge` | **No dedicated endpoint** | — | There is no nudge endpoint. Fetch via `/v1/identity/get`, decrypt client-side, mutate the one dimension, rewrap, then `POST /v1/identity/replace`. |
+| `feedling_memory_verify` | `GET {API}/v1/memory/verify` | — | Per-tab count/floor check after Pass 3. Returns `passing` + per-tab suggestions; also carries `archive_language`. |
+| `feedling_identity_verify` | `GET {API}/v1/identity/verify` | — | Identity acceptance check after init/replace. Returns `passing` + issues to fix. |
+| `feedling_chat_verify_loop` | `POST {API}/v1/chat/verify_loop` | none | Posts a synthetic ping and waits up to 30s for an agent-role reply; returns `passing`. Run before the visible Step 6 greeting. |
 | `feedling_onboarding_validate` | `GET {API}/v1/onboarding/validate` | — | Server-side acceptance checklist. Follow `next_action` until `passing=true`. |
 | `feedling_screen_analyze` | `GET {API}/v1/screen/analyze` | — | Returns semantic analysis JSON. |
 | `feedling_screen_latest_frame` | `GET {API}/v1/screen/frames/latest` | — | Metadata only. |
 | `feedling_screen_frames_list` | `GET {API}/v1/screen/frames?limit=<n>` | — | Metadata list. |
-| `feedling_screen_decrypt_frame` | **No HTTP equivalent** | — | Frame decryption is enclave-only. HTTP-mode agents can't see screen pixels. |
+| `feedling_screen_decrypt_frame` | `GET {API}/v1/screen/frames/<id>/decrypt?include_image=true` | — | Proxies to the enclave; returns plaintext OCR (and the JPEG when `include_image=true`). This is the vision gate — call it before any push. |
 | `feedling_screen_summary` | `GET {API}/v1/screen/summary` | — | Today's screen-time rollup. |
-| `feedling_push_live_activity` | **No HTTP equivalent** | — | Vision-gated push requires the decrypt-frame state from `feedling_screen_decrypt_frame`, which is MCP-only. |
+| `feedling_push_live_activity` | `POST {API}/v1/push/live-activity` | `{title, body, subtitle?}` | Vision-gated: requires a recent `/v1/screen/frames/<id>/decrypt?include_image=true` in your session. Dynamic-Island-only is `POST {API}/v1/push/dynamic-island`. |
 
 ### Envelope shape
 
@@ -928,7 +923,7 @@ The user pubkey is yours (per-device, set at registration). The enclave pubkey i
 If you cannot build envelopes (no crypto, no paired daemon), **you are chat-only**:
 
 - ✅ Replies to incoming user messages — `feedling-chat-resident` builds the envelope and POSTs `/v1/chat/response` for you.
-- ❌ Memory garden, identity init, identity replace — these require envelopes you can't construct. Tell the user honestly: "I can chat with you, but in my current setup I can't write to your memory garden or identity card. Switch to MCP-mode (Claude Desktop / Code / OpenClaw), or pair me with a crypto-capable daemon."
+- ❌ Memory garden, identity init, identity replace — these require envelopes you can't construct. Tell the user honestly: "I can chat with you, but in my current setup I can't write to your memory garden or identity card. Pair me with a crypto-capable daemon that can build v1 envelopes."
 
 This is the only place in this skill where you're allowed to skip bootstrap. **If your runtime cannot do crypto, you cannot do bootstrap.** Be honest about it — don't fake it.
 
