@@ -860,7 +860,7 @@ server / resident-consumer route and for tooling authors.
 Two env vars:
 
 - `FEEDLING_API_URL` — base URL of the backend, e.g. `https://api.feedling.app` (cloud) or `https://<your-host>` (self-hosted).
-- `FEEDLING_API_KEY` — per-user API key. Send on every request as `X-API-Key: <key>` header, or as `?key=<key>` query param, or as `Authorization: Bearer <key>` — pick one and stay consistent.
+- `FEEDLING_API_KEY` — per-user API key. **Send it in a header**, not the URL. Preferred: `Authorization: Bearer <key>`; `X-API-Key: <key>` works too. Pick one and stay consistent. The `?key=<key>` query param is still accepted for legacy compatibility, but **do not use it for new integrations** — query strings leak into ingress access logs and client request history, so a live key in the URL is a credential left in plaintext. Headers don't have that problem.
 
 ### Operation ↔ HTTP endpoint mapping
 
