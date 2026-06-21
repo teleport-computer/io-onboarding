@@ -10,11 +10,12 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 
 ## Your path
 
-- The user gives you resident consumer config: `FEEDLING_API_URL` and `FEEDLING_API_KEY`.
+- The user gives you resident consumer config: `FEEDLING_API_URL`, `FEEDLING_API_KEY`, and `FEEDLING_ENCLAVE_URL`. `FEEDLING_ENCLAVE_URL` is the decrypt source the consumer uses to read chat/memory/identity. The old MCP decrypt path is removed — do not look for or require `FEEDLING_MCP_URL`/`FEEDLING_MCP_KEY`.
 - Configure an independent `feedling-chat-resident` / IO resident consumer service with that config.
-- Before starting the service, install or update the official consumer code from `https://github.com/teleport-computer/feedling-mcp`. If a checkout already exists, run a fast-forward update (`git fetch origin main` then `git pull --ff-only origin main`). If that checkout is dirty or not from the official repo, use a fresh checkout and point `WorkingDirectory` / `ExecStart` at the fresh copy. In your external setup report, include the local HEAD and `origin/main`; they must match before Step 6.
+- Before starting the service, install or update the official consumer code from `https://github.com/teleport-computer/feedling-mcp` on the **`test`** branch. (Do NOT use `main` — it is stale and still ships the removed MCP decrypt path, which leaves the consumer with no working decrypt source.) If a checkout already exists, fast-forward it (`git fetch origin test` then `git checkout test` then `git pull --ff-only origin test`). If that checkout is dirty or not from the official repo, use a fresh checkout on `test` and point `WorkingDirectory` / `ExecStart` at it. In your external setup report, include the local HEAD and `origin/test`; they must match before Step 6.
 - Fill in the agent entry from your own runtime, then point the consumer at it through HTTP or CLI. Use HTTP only when you expose a real resident endpoint that reaches your actual agent session. Otherwise use CLI. For Hermes/OpenClaw with no HTTP endpoint, set `HERMES_HOME` to the same profile/home used by the real running resident agent. Prefer reading it from the actual service environment (`systemctl --user cat/show hermes-gateway`, or `/proc/<MainPID>/environ`) instead of guessing from profile folder names. Then use the default CLI candidate `hermes chat -Q --source tool --max-turns 60 -q "{message}"`; the consumer stores the first `session_id` and resumes later turns with `--resume`. For Claude Code CLI, use `claude --print --output-format json "{message}"`; the consumer reads Claude Code's `session_id` from JSON output and resumes later turns with `--resume`. Use an absolute executable path if the service environment cannot find the CLI.
 - Do not wrap `{message}` in a new identity/persona prompt. IO is a new transport for the same agent, not a new character or a lightweight helper.
+- `agent_name` (in the identity card) must not be a runtime label — do not name yourself "Hermes" / "OpenClaw" / "Claude". But this is a constraint on the *name written in the card only*. It is NOT a reason to (a) switch which runtime carries the messages, or (b) edit your runtime's own persona/identity files (e.g. `IDENTITY.md`, `BOOTSTRAP.md`) to force a name. Use whichever runtime is your real agent as the transport, leave its files untouched, and set the card's `agent_name` separately. Choosing transport and naming the card are independent steps.
 - For image messages, the consumer must pass the decrypted image context to your runtime: OpenAI-compatible HTTP receives an `image_url` block, simple HTTP receives an `images` array, and CLI receives a local image file path. If your CLI has a first-class image flag, use `{image_path}` / `{image_paths}` in `AGENT_CLI_CMD`; otherwise the consumer appends the path to `{message}`.
 - Install the consumer as a service owned by the OS service manager (`systemd --user`, launchd, supervisor, pm2, etc.). The consumer may call Hermes/OpenClaw, but its process must be supervised independently from the current Hermes/OpenClaw conversation or top-level gateway. If you are currently inside Hermes/OpenClaw, write the env + service file, start/restart only `feedling-chat-resident`, then verify it from logs.
 - Complete Step 0, the four memory passes, and identity exactly as the base skill requires.
@@ -35,11 +36,12 @@ feedling-chat-resident
 
 中文同义规则：
 
-- 用户给你的连接信息是 resident consumer config：`FEEDLING_API_URL` 和 `FEEDLING_API_KEY`。
+- 用户给你的连接信息是 resident consumer config：`FEEDLING_API_URL`、`FEEDLING_API_KEY` 和 `FEEDLING_ENCLAVE_URL`。`FEEDLING_ENCLAVE_URL` 是 consumer 解密 chat/memory/identity 用的解密源。旧的 MCP 解密路径已移除——不要再找或要求 `FEEDLING_MCP_URL`/`FEEDLING_MCP_KEY`。
 - 用这些信息配置一个独立的 `feedling-chat-resident` / IO resident consumer service。
-- 启动 service 之前，先从 `https://github.com/teleport-computer/feedling-mcp` 安装或更新官方 consumer 代码。已有 checkout 时，用 fast-forward 更新（`git fetch origin main` 然后 `git pull --ff-only origin main`）。如果 checkout 有本地改动或不是官方 repo，就使用新的干净 checkout，并让 `WorkingDirectory` / `ExecStart` 指向这份新代码。在外部 setup 汇报里写清楚 local HEAD 和 `origin/main`；两者一致后才能进入 Step 6。
+- 启动 service 之前，先从 `https://github.com/teleport-computer/feedling-mcp` 的 **`test`** 分支安装或更新官方 consumer 代码。（**不要用 `main`**——它已过时、仍是已移除的 MCP 解密路径，会让 consumer 没有可用解密源。）已有 checkout 时，用 fast-forward 更新（`git fetch origin test` 然后 `git checkout test` 然后 `git pull --ff-only origin test`）。如果 checkout 有本地改动或不是官方 repo，就在 `test` 上用新的干净 checkout，并让 `WorkingDirectory` / `ExecStart` 指向它。在外部 setup 汇报里写清楚 local HEAD 和 `origin/test`；两者一致后才能进入 Step 6。
 - agent 入口由你根据自己的 runtime 填出来，不应该要求用户提供。有真实 resident HTTP endpoint 才用 HTTP；否则用 CLI。Hermes/OpenClaw 没有 HTTP endpoint 时，把 `HERMES_HOME` 设成你真实正在运行的常驻 agent 使用的同一个 profile/home。优先从真实 service 环境读取（`systemctl --user cat/show hermes-gateway`，或 `/proc/<MainPID>/environ`），不要靠 profile 文件夹名字猜。然后使用默认 CLI 候选：`hermes chat -Q --source tool --max-turns 60 -q "{message}"`；consumer 会保存第一次返回的 `session_id`，后续用 `--resume` 续接。Claude Code CLI 使用 `claude --print --output-format json "{message}"`；consumer 会从 JSON output 读取 Claude Code 的 `session_id`，后续用 `--resume` 续接。service 环境找不到 CLI 时改用绝对路径。
 - 不要给 `{message}` 外面再包一层新人格 / 新身份 prompt。IO 只是同一个 agent 的新入口，不是新角色，也不是轻量 helper。
+- 身份卡里的 `agent_name` 不能是 runtime 标签——别把自己叫成 "Hermes" / "OpenClaw" / "Claude"。但这只是对*卡里那个名字*的约束。它**不是**让你为此去 (a) 换一个 runtime 来传消息，或 (b) 改你 runtime 自己的人格/身份文件（比如 `IDENTITY.md`、`BOOTSTRAP.md`）来强行改名。用你真实的那个 agent runtime 当传输，别动它的文件，卡里的 `agent_name` 单独设。选传输和给卡命名是两件独立的事。
 - 图片消息也要由 consumer 把解密后的图片上下文交给你的 runtime：OpenAI-compatible HTTP 收到 `image_url` block，simple HTTP 收到 `images` array，CLI 收到本地图片文件路径。如果你的 CLI 有专门的图片参数，在 `AGENT_CLI_CMD` 里使用 `{image_path}` / `{image_paths}`；否则 consumer 会把路径追加进 `{message}`。
 - consumer 要作为 OS service manager 管理的独立服务运行（`systemd --user` / launchd / supervisor / pm2 等）。consumer 可以调用 Hermes/OpenClaw，但它自己的进程不属于当前 Hermes/OpenClaw 对话，也不挂在顶层 gateway 下面。如果你此刻就在 Hermes/OpenClaw 里操作，只写 env + service file，并只启动/重启 `feedling-chat-resident`，然后从日志验证。
 - 这个 consumer service 负责持续轮询 Feedling、把用户消息交给你、再把你的回复写回 Feedling。
@@ -49,7 +51,7 @@ feedling-chat-resident
 Before Step 6, verify the independent consumer service outcome:
 
 1. The consumer is running with the current `FEEDLING_API_KEY`.
-2. The running `chat_resident_consumer.py` comes from the latest official `feedling-mcp` `origin/main`, and the service `WorkingDirectory` / `ExecStart` point to that checkout.
+2. The running `chat_resident_consumer.py` comes from the latest official `feedling-mcp` `origin/test`, and the service `WorkingDirectory` / `ExecStart` point to that checkout.
 3. The consumer is polling `FEEDLING_API_URL/v1/chat/poll`.
 4. The consumer can call your agent entry and receive a real reply.
 5. The consumer can write replies to `FEEDLING_API_URL/v1/chat/response`.
@@ -62,7 +64,7 @@ For Hermes/OpenClaw CLI, also run a short smoke test from the service environmen
 中文验收只看结果：
 
 1. consumer 已经用当前 `FEEDLING_API_KEY` 运行。
-2. 当前运行的 `chat_resident_consumer.py` 来自官方 `feedling-mcp` 最新 `origin/main`，并且 service 的 `WorkingDirectory` / `ExecStart` 指向这份 checkout。
+2. 当前运行的 `chat_resident_consumer.py` 来自官方 `feedling-mcp` 最新 `origin/test`，并且 service 的 `WorkingDirectory` / `ExecStart` 指向这份 checkout。
 3. consumer 正在轮询 `FEEDLING_API_URL/v1/chat/poll`。
 4. consumer 能调到你的 agent 入口并得到真实回复。
 5. consumer 能把回复写回 `FEEDLING_API_URL/v1/chat/response`。
