@@ -48,6 +48,54 @@ feedling-chat-resident
 - consumer 要作为 OS service manager 管理的独立服务运行（`systemd --user` / launchd / supervisor / pm2 等）。consumer 可以调用 Hermes/OpenClaw，但它自己的进程不属于当前 Hermes/OpenClaw 对话，也不挂在顶层 gateway 下面。如果你此刻就在 Hermes/OpenClaw 里操作，只写 env + service file，并只启动/重启 `feedling-chat-resident`，然后从日志验证。
 - 这个 consumer service 负责持续轮询 Feedling、把用户消息交给你、再把你的回复写回 Feedling。
 
+## Give yourself IO's tools (perception)
+
+The consumer only delivers chat. To let IO sense the user's world *during chat* — current
+weather, coarse location, motion, calendar — you must also register IO's tool CLI as a
+**native tool in your own runtime** (MCP entry / CLI tool / function). This is one more
+onboarding step, done once.
+
+- The CLI already ships in the consumer checkout you installed above: `tools/io_cli.py`
+  (feedling-mcp `test` branch). You do not build it; you register it.
+- Generic contract (the same for every runtime):
+  - Invocation: `python3 <consumer-checkout>/tools/io_cli.py perception [SIGNALS...]`
+    where SIGNALS ⊆ `now location weather motion calendar steps sleep workout vitals`
+    (default = the fast set `now location weather motion calendar`).
+  - Output: JSON `{"ok":true,"signals":{"<name>":{...}}}`. A signal the user has switched
+    off / not permitted comes back as `{"disabled":true,"reason":"switch_off|not_permitted"}` —
+    surface that honestly to the user, do not pretend you have the data.
+  - Env: it reads the SAME `FEEDLING_API_URL` / `FEEDLING_API_KEY` / `FEEDLING_ENCLAVE_URL`
+    the consumer uses. Make sure your tool-execution environment has them (read them from the
+    consumer service env, do not ask the user).
+- **Register it the way YOUR runtime registers tools** — you know your own runtime
+  (Hermes / OpenClaw / Claude Code / Codex / …). Wire it so the model can call it mid-chat,
+  exactly as you wired `AGENT_CLI_CMD`: the skill is generic, you adapt it.
+- The iOS perception switches gate this **server-side** — flipping a switch changes whether
+  the tool returns data or `disabled`; you do NOT re-register or reconfigure when a switch flips.
+  Register once.
+- Smoke-test from the service environment before the first greeting: run
+  `io_cli.py perception now`, confirm JSON; then confirm the model can actually invoke the
+  tool inside a chat turn (ask it something perceptual and check it calls the tool).
+
+中文同义规则（给自己装 IO 工具）：
+
+- consumer 只负责送聊天。要让 IO 在**聊天时**感知用户世界(当前天气/粗位置/运动/日历),你还得把
+  IO 的工具 CLI 注册成**你自己 runtime 的原生工具**(MCP 条目 / CLI 工具 / function)。这是 onboarding
+  多出来的一步,配一次即可。
+- CLI 已随上面装的 consumer checkout 一起来了:`tools/io_cli.py`(feedling-mcp `test` 分支)。你不用造它,只用注册。
+- 通用合同(对所有 runtime 一样):
+  - 调用:`python3 <consumer-checkout>/tools/io_cli.py perception [信号...]`,信号 ⊆
+    `now location weather motion calendar steps sleep workout vitals`(默认快档 `now location weather motion calendar`)。
+  - 输出:JSON `{"ok":true,"signals":{"<名字>":{...}}}`。用户关掉/未授权的信号返
+    `{"disabled":true,"reason":"switch_off|not_permitted"}`——如实告诉用户,别假装有数据。
+  - 环境:它读的是 consumer 同一套 `FEEDLING_API_URL`/`FEEDLING_API_KEY`/`FEEDLING_ENCLAVE_URL`。
+    确保你执行工具的环境里有这些(从 consumer service env 读,别问用户)。
+- **按你自己 runtime 的方式注册它**——你清楚自己的 runtime(Hermes/OpenClaw/Claude Code/Codex…),
+  像当初配 `AGENT_CLI_CMD` 一样把它接成模型聊天中能调的工具:skill 是通用的,你来适配。
+- iOS 的感知开关在**服务端**门控——翻开关只改"工具返数据还是返 disabled",**开关一变你不用重注册/重配**。注册一次即可。
+- 第一条问候前从 service 环境做 smoke test:跑 `io_cli.py perception now` 确认 JSON;再确认模型在一个聊天 turn 里
+  真能调起这个工具(问它一个跟感知有关的问题,看它有没有调)。
+
 ## Resident consumer readiness
 
 Before Step 6, verify the independent consumer service outcome:
@@ -60,6 +108,8 @@ Before Step 6, verify the independent consumer service outcome:
 6. `feedling_chat_verify_loop` returns `passing=true`.
 7. `feedling_onboarding_validate` marks `resident_consumer` and `live_loop` as passing.
 8. One ordinary user message in IO Chat reaches you and gets one natural reply.
+9. IO's tool CLI (`tools/io_cli.py perception`) is registered as a native tool in your runtime and
+   smoke-tested (returns JSON; the model can invoke it mid-chat). See "Give yourself IO's tools".
 
 For Hermes/OpenClaw CLI, also run a short smoke test from the service environment before the first visible greeting. Use ordinary inputs that represent the user's real chat, including an identity-style question, a tool-using question if tool use is expected, and one image-path message if the user expects IO Chat images to be visible. Fix command/toolset/session/image issues first if the output is not a natural reply from the same agent identity.
 
@@ -73,6 +123,8 @@ For Hermes/OpenClaw CLI, also run a short smoke test from the service environmen
 6. `feedling_chat_verify_loop` 返回 `passing=true`。
 7. `feedling_onboarding_validate` 里 `resident_consumer` 和 `live_loop` 通过。
 8. 用户在 IO Chat 发一条普通消息后，你能自然回复一次。
+9. IO 的工具 CLI(`tools/io_cli.py perception`)已注册成你 runtime 的原生工具并做过 smoke test
+   (返回 JSON;模型能在聊天 turn 里调起它)。见"给自己装 IO 工具(感知)"。
 
 Hermes/OpenClaw CLI 还要在第一条可见问候前，从 service 环境做一个短 smoke test。用几句用户真实可能发的话，包括身份类问题；如果预期有工具能力，也测一个需要工具的问题；如果用户期待 IO Chat 能看图片，也测一条带图片路径的消息。只要输出不是同一个 agent 身份下的自然回复，就先修 command / toolsets / session / image。
 
