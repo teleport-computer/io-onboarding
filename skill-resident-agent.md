@@ -51,9 +51,17 @@ feedling-chat-resident
 ## Give yourself IO's tools (perception)
 
 The consumer only delivers chat. To let IO sense the user's world *during chat* — current
-weather, coarse location, motion, calendar — you must also register IO's tool CLI as a
-**native tool in your own runtime** (MCP entry / CLI tool / function). This is one more
-onboarding step, done once.
+weather, coarse location, motion, calendar — you must also make IO's tool CLI callable from
+your chat turns. This is one more onboarding step, done once.
+
+**Use the lightest tool-invocation surface your runtime already has.** A skill / instruction
+file (`SKILL.md` / `AGENTS.md` / `CLAUDE.md`) that tells you when to call it, plus your
+existing shell / exec / terminal tool, is *sufficient* — that is the baseline and it works
+for every runtime here. Native typed tools, plugins, or MCP servers are **optional production
+upgrades**: reach for them only when you need stronger tool discovery, argument schemas, or
+permission gating. Don't over-build — if you can run the command below from a chat turn and
+parse its JSON, you're done. (Heavy native registration, e.g. an OpenClaw plugin, also has
+runtime-specific gotchas like config delivery and gateway reloads; the light path avoids them.)
 
 - The CLI already ships in the consumer checkout you installed above: `tools/io_cli.py`
   (feedling-mcp `test` branch). You do not build it; you register it.
@@ -79,9 +87,13 @@ onboarding step, done once.
 
 中文同义规则（给自己装 IO 工具）：
 
-- consumer 只负责送聊天。要让 IO 在**聊天时**感知用户世界(当前天气/粗位置/运动/日历),你还得把
-  IO 的工具 CLI 注册成**你自己 runtime 的原生工具**(MCP 条目 / CLI 工具 / function)。这是 onboarding
-  多出来的一步,配一次即可。
+- consumer 只负责送聊天。要让 IO 在**聊天时**感知用户世界(当前天气/粗位置/运动/日历),你还得让
+  IO 的工具 CLI 在你的聊天 turn 里能被调起。这是 onboarding 多出来的一步,配一次即可。
+- **用你 runtime 已经有的最轻工具调用面就够**:一个 skill/说明文件(`SKILL.md`/`AGENTS.md`/`CLAUDE.md`)
+  告诉你何时调它 + 你现成的 shell/exec/terminal 工具,**就足够**——这是 baseline,对这里每个 runtime 都成立。
+  native typed tool / plugin / MCP 是**可选的生产升级位**:需要更强可发现性、参数 schema 或权限门控时才上。
+  **别过度工程化**——能在聊天 turn 里跑下面的命令并解析 JSON,就完成了。(重的 native 注册如 OpenClaw 插件还有
+  config 交付、gateway 重载这类 runtime 专属坑;轻路避开它们。)
 - CLI 已随上面装的 consumer checkout 一起来了:`tools/io_cli.py`(feedling-mcp `test` 分支)。你不用造它,只用注册。
 - 通用合同(对所有 runtime 一样):
   - 调用:`python3 <consumer-checkout>/tools/io_cli.py perception [信号...]`,信号 ⊆
