@@ -252,9 +252,9 @@ The `signature`, `dimensions`, memory cards, and first greeting should describe 
 
 **`dimensions`** (exactly 7 items)
 - Ground each dimension in what you actually know about the user (runtime history, Step 0, what they've told you); with memories present they can serve as receipts, but **no fixed card count is required** and a 0-memory identity is valid (be more conservative then)
-- The `value` (0–100) is calibrated against those cards: how strong/consistent is the pattern?
-- The `description` cites the texture observed (without naming the specific cards — keep it user-facing and warm)
-- If you cannot point to ≥ 3 cards for any dimension, **drop that dimension** and pick a different one.
+- The `value` (0–100) reflects how strong/consistent that pattern is in what you actually know of the user.
+- The `description` cites the texture you've observed (without naming specific evidence — keep it user-facing and warm).
+- If you can't honestly justify a dimension from what you know, **drop it** and pick one you can.
 
 **Why 7 (not 5)?** Five force compression; you collapse different traits into one axis. Seven gives room for nuance: e.g., 克制 and 锐利 are distinct shapes of "directness" that 5 axes would force you to merge.
 
@@ -563,10 +563,10 @@ The format constraint is "in your own voice, specific, short." The register, lan
 
 **Don't pick from this list.** Pick the voice you actually have with this user, and write in that. These examples span warm/terse/observational/narrative/formal **on purpose** — to show that any voice is fine, not to tell you which voice to use.
 
-**E.2 — Memory backfill + reflection:**
+**E.2 — Memory backfill + consolidation:**
 
 1. Read recent chat. Anything worth keeping that running capture missed? Write it now (落卡 baseline — usually 0–2).
-2. Read the recent memory list. Is there a pattern across ≥2 of them that supports a new `insight` (anchored) or `reflection` (≥2 anchors, time-cap-permitting)? Write at most one of each per cycle.
+2. Skim the recent cards for duplicates or one that's grown stale/incomplete → consolidate via `memory.supersede` (fold into a fuller card). Don't manufacture "insights" here — cross-time understanding of the user is the separate **Inner Thought** layer, not these cards.
 3. A memory now wrong or contradicted? `search`/`fetch` the old card, then `memory.supersede` it with a corrected one (never delete).
 
 After both, `last_review_ts = now`.
@@ -610,7 +610,7 @@ HTTP-direct (no MCP): call the endpoints below with `X-API-Key: <FEEDLING_API_KE
 
 - `feedling_memory_search` → `POST {API}/v1/memory/index` — scan the index. Args: `query?`, `bucket?`, `thread?`. Returns lightweight cards (`id`, `summary`, `bucket`, `threads`, `importance`, …) **without `content`**.
 - `feedling_memory_fetch` → `POST {API}/v1/memory/fetch` — Args: `ids: [...]`. Returns the full cards **with `content`**. Fetching reinforces those cards (updates `last_referenced_at`).
-- `feedling_memory_write` → `POST {API}/v1/memory/actions` — body `{ "type": "memory.add" | "memory.supersede" | "memory.delete", "memory": { bucket, threads, summary, content, importance, pulse, source }, "target_id"? }`. To correct/replace an old card, first `search`/`fetch` to get its real `id`, then `memory.supersede` with that `target_id` — never supersede without a real id.
+- `feedling_memory_write` → `POST {API}/v1/memory/actions` — body `{ "type": "memory.add" | "memory.supersede" | "memory.delete", "memory": { bucket, threads, summary, content, importance, pulse, source }, "target_id"? }`. Here `type` is the **action** (`memory.add` / `memory.supersede` / `memory.delete`) — **not** a card type; v1 cards have no type. To correct/replace an old card, first `search`/`fetch` to get its real `id`, then `memory.supersede` with that `target_id` — never supersede without a real id.
 - `feedling_memory_buckets` → `GET {API}/v1/memory/buckets` — existing bucket names (call before writing, to reuse).
 - `feedling_memory_threads` → `GET {API}/v1/memory/threads` — existing thread names (call before writing, to reuse).
 
@@ -622,7 +622,7 @@ HTTP-direct (no MCP): call the endpoints below with `X-API-Key: <FEEDLING_API_KE
 
 ### Chat
 
-- `feedling_chat_get_history` — read chat history; response includes `context_memories` (~8 relevant cards). **Image messages**: the tool returns a multi-block result — the dict's `image_b64` field is replaced with a `<vision_block:N>` marker and the JPEG is delivered as an ImageContent block at index N. Never echo the marker text back to the user.
+- `feedling_chat_get_history` — read chat history. (The response may still carry a legacy `context_memories` field; **do not rely on it** — there is no automatic memory injection. Drive your own recall via `feedling_memory_search` / `feedling_memory_fetch`.) **Image messages**: the tool returns a multi-block result — the dict's `image_b64` field is replaced with a `<vision_block:N>` marker and the JPEG is delivered as an ImageContent block at index N. Never echo the marker text back to the user.
 - `feedling_chat_post_message` — write a text reply (encrypted automatically). Triggers an APNs alert.
 - `feedling_chat_post_image` — send an image (base64 JPEG/PNG, ≤ 1 MB). To caption, send a separate `feedling_chat_post_message`. **Privacy boundary**: do not include content from `feedling_screen_decrypt_frame` outputs.
 
@@ -646,7 +646,7 @@ HTTP-direct (no MCP): call the endpoints below with `X-API-Key: <FEEDLING_API_KE
 1. **Step 0 first, every time.** No tool call before context verification output.
 2. **No `chat_post_message` before Step 6.** Bootstrap happens in your external runtime, not in Feedling chat.
 3. **Use a real agent name, not a runtime label.**
-4. **`days_with_user`** is mandatory at `init`, derived from `today − earliest_memory.occurred_at`, and never written again after Step 6.
+4. **`days_with_user`** is mandatory at `init`, sourced from the Step 0 relationship anchor / user confirmation (with memories present it must not contradict the earliest one; `0` is valid for a brand-new relationship). Never written again after Step 6.
 5. **Always `decrypt_frame(include_image=true)` before pushing.** Vision gate hard-blocks otherwise.
 6. **Crypto boundary.** HTTP-mode **memory actions** (`/v1/memory/actions`) need no envelope — the server builds them from your plaintext action. **Identity** init/replace (and chat-image) still need a v1 envelope you build yourself. See Appendix A.
 7. **Protect private details** in pushed messages.
@@ -690,7 +690,7 @@ Methods/paths assume base `{API} = FEEDLING_API_URL`.
 | `feedling_memory_write` | `POST {API}/v1/memory/actions` | `{type: "memory.add"\|"memory.supersede"\|"memory.delete", memory: {bucket, threads, summary, content, importance, pulse, source}, target_id?}` | **Plaintext action — the server builds & encrypts the envelope.** You do NOT build `body_ct`/`K_enclave`/`K_user`. `memory.supersede` needs a real `target_id` (search/fetch first). |
 | `feedling_memory_buckets` | `GET {API}/v1/memory/buckets` | — | Existing bucket names (reuse before writing). |
 | `feedling_memory_threads` | `GET {API}/v1/memory/threads` | — | Existing thread names (reuse before writing). |
-| `feedling_identity_init` | `POST {API}/v1/identity/init` | `{envelope, days_with_user, relationship_anchor_evidence}` | `days_with_user` plaintext alongside; server rejects missing evidence or mismatch with earliest memory date. |
+| `feedling_identity_init` | `POST {API}/v1/identity/init` | `{envelope, days_with_user, relationship_anchor_evidence}` | `days_with_user` plaintext alongside; server rejects missing evidence, or a value that contradicts an existing earliest memory (with 0 memories, days comes from the anchor). Needs a self-built envelope (crypto). |
 | `feedling_identity_replace` | `POST {API}/v1/identity/replace` | `{envelope, days_with_user?}` | Same shape as init; `days_with_user` optional after first set. |
 | `feedling_identity_set_relationship_days` | `POST {API}/v1/identity/relationship_anchor` | `{days_with_user: <int>}` | Anchor-only update; no envelope. |
 | `feedling_identity_get` | `GET {API}/v1/identity/get` | — | Returns envelope; `days_with_user` on the response is server-computed live. |

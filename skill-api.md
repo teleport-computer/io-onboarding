@@ -36,8 +36,9 @@ The model API key route is ready only when all of these are true:
 
 - Provider key is accepted by IO.
 - A test model call succeeds.
-- Identity and Memory Garden are initialized from real user-provided or imported
-  history.
+- Identity is initialized first (per base v1: from fresh start / Step 0 / user
+  confirmation; **0 memory is valid**). Memory may optionally be seeded from
+  imported / user-provided history, but is **not** an onboarding gate.
 - IO can send a normal chat message to the hosted runtime and receive a normal
   reply.
 - Proactive jobs, if enabled, go through the same hosted runtime and do not
@@ -74,6 +75,6 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 
 - Provider key 被 IO 接受。
 - 测试 model call 成功。
-- Identity 和 Memory Garden 来自真实导入 / 用户提供的历史。
+- Identity 先建(按 base v1:可来自 fresh start / Step 0 / 用户确认;**0 记忆也有效**)。Memory 可选地从导入/用户历史播种,但**不是 onboarding 门槛**。
 - IO 能把一条普通 chat message 交给 hosted runtime，并收到自然回复。
 - 如果 proactive 开启，它也必须走同一个 hosted runtime，不能创造第二个人格。
