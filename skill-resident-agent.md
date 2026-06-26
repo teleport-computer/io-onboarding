@@ -6,7 +6,7 @@ Examples: Hermes, OpenClaw, Claude Code running on a Mac mini / VPS, or another 
 
 This profile fixes your connection path. Read the base skill next, but override its connection-owner selection with this profile:
 
-https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
+https://raw.githubusercontent.com/teleport-computer/io-onboarding/feat/skill-memory-v1/skill.md
 
 ## Your path
 
@@ -19,7 +19,7 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 - `agent_name` (in the identity card) must not be a runtime label — do not name yourself "Hermes" / "OpenClaw" / "Claude". But this is a constraint on the *name written in the card only*. It is NOT a reason to (a) switch which runtime carries the messages, or (b) edit your runtime's own persona/identity files (e.g. `IDENTITY.md`, `BOOTSTRAP.md`) to force a name. Use whichever runtime is your real agent as the transport, leave its files untouched, and set the card's `agent_name` separately. Choosing transport and naming the card are independent steps.
 - For image messages, the consumer must pass the decrypted image context to your runtime: OpenAI-compatible HTTP receives an `image_url` block, simple HTTP receives an `images` array, and CLI receives a local image file path. If your CLI has a first-class image flag, use `{image_path}` / `{image_paths}` in `AGENT_CLI_CMD`; otherwise the consumer appends the path to `{message}`.
 - Install the consumer as a service owned by the OS service manager (`systemd --user`, launchd, supervisor, pm2, etc.). The consumer may call Hermes/OpenClaw, but its process must be supervised independently from the current Hermes/OpenClaw conversation or top-level gateway. If you are currently inside Hermes/OpenClaw, write the env + service file, start/restart only `feedling-chat-resident`, then verify it from logs.
-- Complete Step 0, the four memory passes, and identity exactly as the base skill requires.
+- Complete Step 0, identity, and the live connection exactly as the base skill requires. (Memory is no longer a gated four-pass sweep — there are no floors; identity comes first and the garden grows naturally. See the base skill's Memory model.)
 - Keep the consumer service alive. It owns the ongoing IO chat loop by polling Feedling and calling your agent entry for each user message.
 - Verify the live reply path with `feedling_chat_verify_loop`.
 - After each module, call `feedling_onboarding_validate`; if `passing=false`, fix `next_action` and rerun it.
