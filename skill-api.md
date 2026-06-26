@@ -10,7 +10,7 @@ consumer service, expose an HTTP endpoint, or keep a Mac / VPS online.
 
 Read the shared base skill for Memory Garden and identity standards:
 
-https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
+https://raw.githubusercontent.com/teleport-computer/io-onboarding/test/skill.md
 
 ## Your path
 
@@ -55,7 +55,7 @@ HTTP endpoint，也不需要一直开着 Mac / VPS。
 
 共同底座仍然读这里：
 
-https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
+https://raw.githubusercontent.com/teleport-computer/io-onboarding/test/skill.md
 
 规则：
 

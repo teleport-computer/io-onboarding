@@ -6,7 +6,7 @@ Examples: Hermes, OpenClaw, Claude Code running on a Mac mini / VPS, or another 
 
 This profile fixes your connection path. Read the base skill next, but override its connection-owner selection with this profile:
 
-https://raw.githubusercontent.com/teleport-computer/io-onboarding/feat/skill-memory-v1/skill.md
+https://raw.githubusercontent.com/teleport-computer/io-onboarding/test/skill.md
 
 ## Your path
 
