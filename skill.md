@@ -214,7 +214,7 @@ Bootstrap is not one-shot — the garden fills in through ongoing capture, which
 
 Identity is the **first** thing you write, and it does **not** depend on the Memory Garden — a brand-new user with zero memories can still have an identity card. Ground each field in what you actually know about the user (your runtime history with them, the Step 0 context, or what they tell you). If you already have memories, use them as supporting receipts — but identity is **not** "derived from a completed garden", and there is no Pass 1–4 or floor to clear first.
 
-> **Crypto boundary (HTTP-direct):** unlike memory — where you submit a plaintext action and the **server** builds the encrypted envelope (`/v1/memory/actions`) — identity init still requires **you** to build the encrypted envelope yourself (`/v1/identity/init` takes a pre-built `{envelope}`). There is no server-side identity-init path yet. So if your runtime cannot do crypto, you can chat and even write memory, but you **cannot write the identity card** — which means you can't finish onboarding. Be honest with the user and switch to a crypto-capable path (or pair with one) rather than faking it.
+> **Crypto boundary (HTTP-direct):** like memory, **identity init needs no client crypto** — `/v1/identity/init` accepts a **plaintext `identity`** and the **server** builds the encrypted envelope (same model as `/v1/memory/actions`). It also still accepts a pre-built `{envelope}` (iOS / official client). So a crypto-less runtime can chat, write memory, **and create the identity card** → it **can** finish onboarding. Only identity **replace/nudge** and chat-image still need an envelope you build yourself; defer just those to a crypto-capable path if unavailable.
 
 ### Identity is unified — read this before writing any field
 
@@ -687,7 +687,7 @@ Methods/paths assume base `{API} = FEEDLING_API_URL`.
 | `feedling_identity_set_relationship_days` | `POST {API}/v1/identity/relationship_anchor` | `{days_with_user: <int>}` | Anchor-only update; no envelope. |
 | `feedling_identity_get` | `GET {API}/v1/identity/get` | — | Returns envelope; `days_with_user` on the response is server-computed live. |
 | `feedling_identity_nudge` | **No dedicated endpoint** | — | There is no nudge endpoint. Fetch via `/v1/identity/get`, decrypt client-side, mutate the one dimension, rewrap, then `POST /v1/identity/replace`. |
-| `feedling_memory_verify` | `GET {API}/v1/memory/verify` | — | Per-tab count/floor check after Pass 3. Returns `passing` + per-tab suggestions; also carries `archive_language`. |
+| `feedling_memory_verify` | `GET {API}/v1/memory/verify` | — | **Legacy — not part of the v1 flow.** v1 has no per-tab floors and no Pass 1–4; memory does **not** gate onboarding (A'). Do not call it as a gate. |
 | `feedling_identity_verify` | `GET {API}/v1/identity/verify` | — | Identity acceptance check after init/replace. Returns `passing` + issues to fix. |
 | `feedling_chat_verify_loop` | `POST {API}/v1/chat/verify_loop` | none | Posts a synthetic ping and waits up to 30s for an agent-role reply; returns `passing`. Run before the visible Step 6 greeting. |
 | `feedling_onboarding_validate` | `GET {API}/v1/onboarding/validate` | — | Server-side acceptance checklist. Follow `next_action` until `passing=true`. |
