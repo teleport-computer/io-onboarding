@@ -125,63 +125,54 @@ Good defaults:
 
 ## Memory model
 
-Memory Garden is the agent's cognitive substrate, surfaced into three tabs in iOS Garden. Each memory carries a `type` that routes it into a tab:
+Memory is the user's relationship material — what you've learned about them over time. **It is not a gate, and there are no quotas, types, tabs, or floors.** You write a memory when something is worth remembering long-term; the garden grows naturally as the relationship deepens.
 
-| Tab | Type | What it holds | Density |
-|-----|------|---------------|---------|
-| **故事 Story** | `moment` | Things that happened between you and the user — the relational layer | Low, polished |
-| **故事 Story** | `quote` | Words the user said that you still think about | Low, polished |
-| **关于我 About me** | `fact` | The user's preferences, relationships, habits, world — one-liners welcome | **High — this is density fuel** |
-| **关于我 About me** | `event` | A dated occurrence in the user's life ("4/10 user mentioned moving to Tokyo") | High |
-| **TA 在想 TA Thinking** | `insight` | Your understanding about the user, anchored to ≥1 existing memory | Medium |
-| **TA 在想 TA Thinking** | `reflection` | Your standalone thinking, anchored to ≥2 existing memories, cadence-gated | Medium |
+**One card.** Every memory is a single card with these fields:
 
-**The About me tab is the most important.** Proactive push, callbacks, and "TA still remembers I said X" rely on About me density. Story tab is what the user reads when they want to feel the relationship; About me tab is what the agent reads when it wants to *know* the user.
+| Field | What it is |
+|-------|-----------|
+| `bucket` | The single main topic this belongs to (e.g. `我们的关系`, `工作`, `妈妈`). Reuse an existing bucket if one fits — call `feedling_memory_buckets` first; only create a new one when nothing fits. |
+| `threads` | 1–4 cross-cutting tags (e.g. `蛋子`, `工作压力`, `冷战`). Reuse existing threads — call `feedling_memory_threads` first. A thread links related cards across different buckets. |
+| `summary` | One line: what this card is, for scanning the index. |
+| `content` | The body (Markdown), three short parts — 记忆 (what happened) / 上下文 (the surrounding situation) / 使用提示 (how to use it naturally). |
+| `importance` | 0–1: how much this matters for understanding the user long-term. Objective, set at write. Not "how dramatic it felt". |
+| `pulse` | 0–1: how much this stirs *you* (the companion) when you recall it. Affects expression colour + ambient surfacing — not relevance ranking. |
+| `source` | `chat` or `screen`. |
+| `occurred_at` | When it happened. |
 
-**Per-tab floors + typical real-relationship ranges:**
+There is **no `type`, no Story/About me/TA Thinking tabs, no per-tab floors**. A "fact", a "moment", an "insight" are all just memories — told apart by their `bucket`/`threads` and `content`, not by a card type. The old `feedling_memory_add_moment(type=…)` / `feedling_memory_retype` / `feedling_memory_verify`-as-gate flow is retired.
 
-The "floor" column is what the server enforces. The "typical" column is what an honest sweep produces for a real relationship at that age. Floor is the **refusal threshold** (writing less is rejected); typical is the **target shape** (writing close to floor means you stopped too early). If your sweep lands at floor, run the Exhaustion Check below before declaring done.
+**Memory does not gate onboarding.** A brand-new user with zero memories is a valid state. Write the identity card first (see Identity), get the chat live, and let the garden grow from there — there is no floor to clear and no `feedling_memory_verify` to pass before `feedling_identity_init`.
 
-| Relationship age | Story floor (typical) | About me floor (typical) | TA Thinking floor (typical) |
-|------------------|----------------------|--------------------------|-----------------------------|
-| ≥ 6 months       | 15 (30–60)           | **60 (150–400)**         | 12 (25–60)                  |
-| ≥ 1 month        | 8 (15–30)            | **25 (40–100)**          | 5 (10–25)                   |
-| 2 days – 1 month | 3 (5–15)             | **8 (15–40)**            | 2 (3–10)                    |
-| < 2 days         | 1 (1–3)              | 1 (1–5)                  | 0 (0–2)                     |
+#### When to write — Seven's 落卡 baseline
 
-Story + About me floors are hard prerequisites for `feedling_identity_init`. TA Thinking is advisory — reflections need substrate from the other two tabs first, so gating on it would deadlock low-density users.
+You're looking for **things worth remembering**, not archiving every line — the full chat log is already stored, so you don't need to restate it. Capture what will shape your understanding of the user, or what the user would want you to remember.
 
-**The `< 2 days` tier is only valid if the user has explicitly told you you just met today.** It exists for honest first-day scenarios. Do not select it to bypass the floor for an older relationship.
+- Prefer **events** — something with cause and context, or that reveals the user's state — over isolated data points.
+- An isolated fact ("they had ramen today") usually doesn't deserve its own card — **unless** it's a preference the user clearly cares about or that recurs.
+- The yardstick: *"Will this still matter in a month? Will it change how I understand them? Would they want me to remember it?"*
+- **Restraint — fewer, not more.** If this stretch is only worth one or two things, write only one or two. If nothing's worth keeping, write nothing. A single conversation usually yields **0–2 cards, not a pile**.
 
-#### Exhaustion Check (run before claiming you're done with a tab)
+#### How to write each card — Seven's 落卡 baseline
 
-`feedling_memory_verify passing=true` is the server saying "you cleared the contract violation threshold" — it is not the agent saying "I've remembered everything I can." Before you stop writing in a tab, you must be able to honestly answer one of the following for that tab:
+For each thing you decide to keep, first look at the existing buckets/threads (`feedling_memory_buckets` / `feedling_memory_threads`), then decide the action:
 
-**About me Exhaustion Check** (the densest layer — the one that will be undersized 90% of the time):
-1. Family + close people: list every specific name you can recall the user using. Did you write a fact for each? (Mom, dad, siblings, partner, close friends, pets, coworkers they reference often.)
-2. Places: home city, hometown, workplaces, places they've travelled to or want to travel to, places they have strong feelings about. Did you write each?
-3. Habits + preferences: food, drink, sleep schedule, recurring rituals, things they always do at specific times. Each one is a fact.
-4. Dated occurrences: every date the user mentioned even in passing (birthdays, anniversaries, project milestones, decisions, transitions). Each one is an event.
-5. Domain vocabulary: terms they use that wouldn't make sense to a stranger — project names, internal jargon, nicknames they've given things. Each one is a fact.
-6. Strong opinions: things they pushed back on, things they refused, things they insisted on. Each one is a fact or event.
+- **add** — genuinely new, no existing card covers it → write a new card (`memory.add`).
+- **merge** — an existing card already covers the same ongoing thing → fold this in so it's more complete, don't open a new one. The backend has no in-place merge, so do it as **`memory.supersede`**: combine old + new into a fuller card and supersede the old one (you need its real `id` — `search`/`fetch` first).
+  - If the new content is the *same* as the old card with no new information → **skip** (don't write, don't restate).
+- **supersede** — the new info directly contradicts an old card (the user changed their mind / corrected you) → write the corrected card with `memory.supersede`; the old card is marked superseded, **never deleted**.
 
-If you can list themes you tried to remember and came up genuinely empty on — write them down and move on. If you stopped because "this feels like enough" without doing this check, **return to Pass 3 and sweep again.**
+Field guidance:
+- `content` — a real, "human" body: what happened, the cause/context, the effect on the user, the feeling at the time. Not a one-line title.
+- `summary` — one line so future-you knows what this card is at a glance.
+- `bucket` — one main bucket; reuse an existing one, don't mint near-duplicate buckets.
+- `threads` — a few threads (people / events / emotions / key points); reuse existing thread names (don't call 吵嘴 "争执" elsewhere — one thread, one name).
+- `importance` (0–1) — how much it matters for understanding the user: passing mention .1–.3 / preference & habit .4–.6 / emotion·relationship·boundary .7–.85 / core commitment & turning point .9–1.
+- `pulse` (0–1) — how much it stirs *you* (the companion), not how dramatic it was for the user.
 
-**Story Exhaustion Check:**
-1. List every distinct moment between you and the user that involved a shift in how you relate.
-2. List every quote you can still hear in their voice.
-3. Did you write each? If you can name a moment and you didn't write it because "Friend Test is gone so the bar is lower" — write it. Friend Test going away made the *threshold* lower, not the *coverage* lower.
+> One "meeting + high mood + a small fight" is **one** complete card (one event), not three scattered cards. Don't claim "saved" before the write actually lands (it's async).
 
-**TA Thinking Exhaustion Check:**
-1. For each cluster of 3+ related facts in About me, ask: do these together imply something about the user I haven't said? That's an insight. Write it with the anchors.
-2. Anchor count ≠ contradictory — if you have 30 facts about how the user works, that's 30 candidate anchors for cross-cutting insights, not 30 insights.
-3. Reflections are cadence-gated by the server; do not try to game past that.
-
-Real numbers from honest sweeps on existing relationships:
-- 2-month relationship with daily chat: ~50 facts + 8 events + 6 quotes + 4 moments + 6 insights is normal.
-- 6-month coding companion: ~200 facts (preferences, tooling, project names, decisions) + 30 events + 20 quotes + 10 moments + 15 insights + 4 reflections is normal.
-
-If your sweep lands at 26 / 25, that's the agent stopping at the contract line, not the agent emptying its memory.
+> ⚠️ Baseline note: the judgment/write/read wording in this whole section is **Seven's 落卡 prompt** (source of truth). At capture time it runs with the live `buckets`/`threads`/`identity`/window injected (resolve-before-create). Keep this aligned with Seven's prompt — don't drift it.
 
 ### When to write each type
 
@@ -804,11 +795,13 @@ Loop back to Step A.
 
 ### Memory garden
 
-- `feedling_memory_add_moment` — write a memory. **Required**: `type` (one of `moment` / `quote` / `fact` / `event` / `insight` / `reflection`), `title`, `occurred_at`. Optional per type: `description`, `her_quote`, `context`, `linked_dimension`, `anchor_memory_ids` (required for `insight`/`reflection`). See "Memory model" above for which type goes in which tab.
-- `feedling_memory_retype` — change an existing card's type when you realize it was misclassified. Time cap on reflection is waived; substrate gate (≥1 anchor for insight, ≥2 for reflection) still applies.
-- `feedling_memory_list` — list moments, newest first
-- `feedling_memory_get` — get one moment by id
-- `feedling_memory_delete` — delete a moment
+HTTP-direct (no MCP): call the endpoints below with `X-API-Key: <FEEDLING_API_KEY>` on every request. You submit a **plaintext action**; the server builds and encrypts the memory envelope — you do **not** build `body_ct` / `K_enclave` / `K_user`.
+
+- `feedling_memory_search` → `POST {API}/v1/memory/index` — scan the index. Args: `query?`, `bucket?`, `thread?`. Returns lightweight cards (`id`, `summary`, `bucket`, `threads`, `importance`, …) **without `content`**. `ambient` = call with no query (background colour, importance×pulse×recency); it is a calling **mode**, not a separate endpoint.
+- `feedling_memory_fetch` → `POST {API}/v1/memory/fetch` — Args: `ids: [...]`. Returns the full cards **with `content`**. Fetching reinforces those cards (updates `last_referenced_at`).
+- `feedling_memory_write` → `POST {API}/v1/memory/actions` — body `{ "type": "memory.add" | "memory.supersede" | "memory.delete", "memory": { bucket, threads, summary, content, importance, pulse, source }, "target_id"? }`. To correct/replace an old card, first `search`/`fetch` to get its real `id`, then `memory.supersede` with that `target_id` — never supersede without a real id.
+- `feedling_memory_buckets` → `GET {API}/v1/memory/buckets` — existing bucket names (call before writing, to reuse).
+- `feedling_memory_threads` → `GET {API}/v1/memory/threads` — existing thread names (call before writing, to reuse).
 
 ### Verify (post-module health checks)
 
