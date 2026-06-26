@@ -238,7 +238,7 @@ There is **no memory-sweep verification** — you don't owe the user a "garden c
 
 ## Running capture — the garden grows over time
 
-Bootstrap is not one-shot — the garden fills in through ongoing capture. At natural **breakpoints** (a lull of ~15–30 min, ~20–30 turns since the last capture, or the user signing off), look back over the stretch and decide whether anything is worth keeping — using the **落卡 baseline** in the Memory model section.
+Bootstrap is not one-shot — the garden fills in through ongoing capture, which runs at **conversation breakpoints**, not after every reply. A breakpoint is a **timing signal** — a lull of ~15–30 min, ~20–30 turns since the last capture, or the user clearly signing off (your runtime/consumer surfaces the timing ones; a sign-off you can see directly). **Detecting the breakpoint is mechanical; deciding what — if anything — is worth keeping is your judgment. Keep the two separate.** At a breakpoint, look back over the stretch and judge using the **落卡 baseline** in the Memory model section.
 
 - Conservative: a stretch usually yields **0–2 cards, not a pile**. Most chitchat produces nothing to keep — that's normal, not a failure.
 - For each thing worth keeping: call `feedling_memory_buckets` / `feedling_memory_threads` to reuse existing vocabulary, then `feedling_memory_write` — `memory.add` for something new, or `memory.supersede` to fold into / correct an existing card (find its real `id` via `search`/`fetch` first; never supersede without one).
