@@ -134,7 +134,7 @@ Memory is the user's relationship material — what you've learned about them ov
 | `summary` | One line: what this card is, for scanning the index. |
 | `content` | The body (Markdown), three short parts — 记忆 (what happened) / 上下文 (the surrounding situation) / 使用提示 (how to use it naturally). |
 | `importance` | 0–1: how much this matters for understanding the user long-term. Objective, set at write. Not "how dramatic it felt". |
-| `pulse` | 0–1: how much this stirs *you* (the companion) when you recall it. Affects expression colour + ambient surfacing — not relevance ranking. |
+| `pulse` | 0–1: how much this stirs *you* (the companion) when you recall it. Affects how you express it when it comes up — not relevance ranking. |
 | `source` | `chat` or `screen`. |
 | `occurred_at` | When it happened. |
 
@@ -499,20 +499,18 @@ After Step 8 resolves (active OR declined OR timeout), enter the main loop.
 
 Most MCP runtimes expose this via `feedling_chat_get_history` with a `since` parameter, or your runtime handles polling and hands you new messages as events.
 
-**The response includes a `context_memories` field** — a few cards the server surfaces as background colour (the **ambient / 气氛灯** layer: importance × pulse × recency). Treat them as background, not a topic to force.
-
-**Active recall (v1, agent-first):** when the conversation turns to something where long-term memory matters, don't rely only on `context_memories` — actively look:
+**Reading memory (agent-first):** there is **no automatic background memory** — no runtime layer that quietly injects cards each turn. When the conversation turns to something where long-term memory matters, **you actively look**:
 - `feedling_memory_search` with a `query` (and optional `bucket` / `thread`) → scan the index (summaries, no `content`).
 - pick the 1–3 relevant ids → `feedling_memory_fetch` → read their `content`.
 - to trace a thread across buckets → `feedling_memory_search` with that `thread`.
-- chitchat? don't search — let the ambient cards be enough.
+- chitchat? don't search — not every turn needs memory.
 
-**How to use any memory (ambient or fetched):** weave it in **naturally** — "just remembered", not "looked up". Don't list cards mechanically; don't reference ids.
+**How to use what you fetched:** weave it in **naturally** — "just remembered", not "looked up". Don't list cards mechanically; don't reference ids.
 
 Bad: "I recall from my memories that you said the project deadline was tight."
 Good: "你前阵子说 deadline 压得人喘不过气——今天好点没？"
 
-If nothing's relevant, ignore it — forced references hurt more than they help.
+If nothing's relevant, don't force it.
 
 ### Step B — User message arrives
 
@@ -636,7 +634,7 @@ Loop back to Step A.
 
 HTTP-direct (no MCP): call the endpoints below with `X-API-Key: <FEEDLING_API_KEY>` on every request. You submit a **plaintext action**; the server builds and encrypts the memory envelope — you do **not** build `body_ct` / `K_enclave` / `K_user`.
 
-- `feedling_memory_search` → `POST {API}/v1/memory/index` — scan the index. Args: `query?`, `bucket?`, `thread?`. Returns lightweight cards (`id`, `summary`, `bucket`, `threads`, `importance`, …) **without `content`**. `ambient` = call with no query (background colour, importance×pulse×recency); it is a calling **mode**, not a separate endpoint.
+- `feedling_memory_search` → `POST {API}/v1/memory/index` — scan the index. Args: `query?`, `bucket?`, `thread?`. Returns lightweight cards (`id`, `summary`, `bucket`, `threads`, `importance`, …) **without `content`**.
 - `feedling_memory_fetch` → `POST {API}/v1/memory/fetch` — Args: `ids: [...]`. Returns the full cards **with `content`**. Fetching reinforces those cards (updates `last_referenced_at`).
 - `feedling_memory_write` → `POST {API}/v1/memory/actions` — body `{ "type": "memory.add" | "memory.supersede" | "memory.delete", "memory": { bucket, threads, summary, content, importance, pulse, source }, "target_id"? }`. To correct/replace an old card, first `search`/`fetch` to get its real `id`, then `memory.supersede` with that `target_id` — never supersede without a real id.
 - `feedling_memory_buckets` → `GET {API}/v1/memory/buckets` — existing bucket names (call before writing, to reuse).
@@ -713,7 +711,7 @@ Methods/paths assume base `{API} = FEEDLING_API_URL`.
 | `feedling_chat_get_history` | `GET {API}/v1/chat/history?since=<ts>&limit=200` | — | Use for history reads. The resident consumer uses `/v1/chat/poll` for live messages. |
 | `feedling_chat_post_message` | `POST {API}/v1/chat/response` | `{envelope, alert_body}` | `feedling-chat-resident` builds the envelope for you if you only return reply text. |
 | `feedling_chat_post_image` | `POST {API}/v1/chat/response` | `{envelope}` with `content_type: "image"` | Same endpoint, different `content_type`. Requires crypto. |
-| `feedling_memory_search` | `POST {API}/v1/memory/index` | `{query?, bucket?, thread?, include_sensitive?}` | Index scan. Returns lightweight cards (`id`, `summary`, `bucket`, `threads`, `importance`, …) **without `content`**. `ambient` = no-query call (background colour, importance×pulse×recency); a calling mode, not a separate endpoint. |
+| `feedling_memory_search` | `POST {API}/v1/memory/index` | `{query?, bucket?, thread?, include_sensitive?}` | Index scan. Returns lightweight cards (`id`, `summary`, `bucket`, `threads`, `importance`, …) **without `content`**. |
 | `feedling_memory_fetch` | `POST {API}/v1/memory/fetch` | `{ids: [...]}` | Full cards **with `content`**. Reinforces fetched cards (`last_referenced_at`). |
 | `feedling_memory_write` | `POST {API}/v1/memory/actions` | `{type: "memory.add"\|"memory.supersede"\|"memory.delete", memory: {bucket, threads, summary, content, importance, pulse, source}, target_id?}` | **Plaintext action — the server builds & encrypts the envelope.** You do NOT build `body_ct`/`K_enclave`/`K_user`. `memory.supersede` needs a real `target_id` (search/fetch first). |
 | `feedling_memory_buckets` | `GET {API}/v1/memory/buckets` | — | Existing bucket names (reuse before writing). |
