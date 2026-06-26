@@ -17,7 +17,7 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 - Do not wrap `{message}` in a new identity/persona prompt. IO is a new transport for the same agent, not a new character or a lightweight helper.
 - For image messages, the consumer must pass the decrypted image context to your runtime: OpenAI-compatible HTTP receives an `image_url` block, simple HTTP receives an `images` array, and CLI receives a local image file path. If your CLI has a first-class image flag, use `{image_path}` / `{image_paths}` in `AGENT_CLI_CMD`; otherwise the consumer appends the path to `{message}`.
 - Install the consumer as a service owned by the OS service manager (`systemd --user`, launchd, supervisor, pm2, etc.). The consumer may call Hermes/OpenClaw, but its process must be supervised independently from the current Hermes/OpenClaw conversation or top-level gateway. If you are currently inside Hermes/OpenClaw, write the env + service file, start/restart only `feedling-chat-resident`, then verify it from logs.
-- Complete Step 0, the four memory passes, and identity exactly as the base skill requires.
+- Complete Step 0, identity, and the live connection exactly as the base skill requires. (Memory is no longer a gated four-pass sweep — there are no floors; identity comes first and the garden grows naturally. See the base skill's Memory model.)
 - Keep the consumer service alive. It owns the ongoing IO chat loop by polling Feedling and calling your agent entry for each user message.
 - Verify the live reply path with `feedling_chat_verify_loop`.
 - After each module, call `feedling_onboarding_validate`; if `passing=false`, fix `next_action` and rerun it.

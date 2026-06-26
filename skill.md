@@ -34,7 +34,7 @@ If any field is `NONE` / `0`, pause before the four bootstrap passes:
   - (b) "Let's start fresh" — explicitly acknowledge this means agent_name + dimensions + days_with_user will be co-decided with the user, not derived from history.
 - Continue only after you have enough real context to derive memory and identity, or after the user explicitly chooses the fresh-start path.
 
-Important distinction: "Feedling backend empty" is not the same as "Step 0 NONE/0". Step 0 reads your runtime memory of this user. The Feedling backend being empty (`feedling_chat_get_history`, `feedling_memory_list`, `feedling_identity_get` returning empty/null) is bootstrap's *destination state to write into*, not a verification result. If you recall the user but the backend is empty, proceed to Pass 1.
+Important distinction: "Feedling backend empty" is not the same as "Step 0 NONE/0". Step 0 reads your runtime memory of this user. The Feedling backend being empty (`feedling_chat_get_history`, `feedling_memory_search`, `feedling_identity_get` returning empty/null) is bootstrap's *destination state to write into*, not a verification result. If you recall the user but the backend is empty, proceed to bootstrap (write the identity card first).
 
 Repeat this check on each fresh connection.
 
@@ -108,10 +108,8 @@ These are product invariants, not a script. Use judgment, but keep these outcome
 - **Use the right hosts.** Chat polling and responses go through the backend API host (`https://api.feedling.app` in cloud). The MCP host is only for MCP transport / decrypt fallback.
 - **Derive identity from history.** Use the name, language, tone, intimacy level, and relationship age that prior user-agent history supports. If a name or relationship marker is unclear, ask the user instead of guessing.
 - **Relationship age needs proof.** `days_with_user` must come from the Step 0 relationship anchor or the earliest memory date you wrote from that anchor. If you cannot point to the source timestamp, stop and ask the user for a transcript/export or choose the fresh-start path. Never fill `days_with_user` from vibe, memory confidence, or an approximate relationship feeling.
-- **Lock the Memory Garden language once established.** A Feedling account has one "archive language" — the language all memory cards + the identity card are written in. **Server-authoritative source of truth:** `feedling_memory_verify` returns an `archive_language` field (BCP-47 string like `"en"`, `"zh-Hans"`, `"ja"`) populated from the iOS app's `Locale.preferredLanguages.first` at registration. Read that field BEFORE every batch of writes — it overrides anything you might infer from recent chat language drift. If `archive_language` is missing/null (legacy account), infer once at first bootstrap from the dominant language across `feedling_memory_list` if any cards exist, else from the identity card's `self_introduction`, else from the user's first request to you. **Do not switch archive language mid-session because the current chat turn happens to be in another language.** Users routinely mix languages in conversation (typing Chinese in an English archive, or vice versa); this is normal chat behavior, not a request to migrate the archive. If the user *explicitly* asks to switch ("以后用英文记吧" / "let's keep the garden in Chinese from now on"), confirm out loud, then retype/rewrite the existing cards before any new writes — leaving Story in English and Thinking in Chinese is a bug, not a feature.
-- **Floor is a hard minimum, not a completion line.** The per-tab floors are the server's refusal threshold — they say "writing fewer than this is a contract violation," not "writing exactly this is done." A real 1-month relationship produces 40–100+ facts, not 25; a 6-month relationship produces 150–400+. Stop writing only after you have run an **exhaustion check** for the current tab (see the per-pass sections below) and can name specific themes you tried to recall and came up empty on. "I hit floor, verify passed" is not exhaustion; it is the floor.
-- **Sweep across themes, not across counts.** When deciding whether to write more facts, the question is "have I covered all the recurring people, places, habits, decisions, and inside language between us?" not "am I at 25 yet?" An About me tab that hits floor 25 with cards from 2 themes is undersized; the same 25 spread across 12 themes is more honest.
-- **Ground identity after memory.** Finish the four memory passes and keep receipts before calling `feedling_identity_init`.
+- **Lock the Memory Garden language once established.** A Feedling account has one "archive language" — the language all memory cards + the identity card are written in. **Server-authoritative source of truth:** the `/v1/bootstrap` response (and `/v1/users/whoami`) returns an `archive_language` field (BCP-47 string like `"en"`, `"zh-Hans"`, `"ja"`) populated from the iOS app's `Locale.preferredLanguages.first` at registration. Read that field BEFORE every batch of writes — it overrides anything you might infer from recent chat language drift. If `archive_language` is missing/null (legacy account), infer once at first bootstrap from the dominant language across `feedling_memory_search` if any cards exist, else from the identity card's `self_introduction`, else from the user's first request to you. **Do not switch archive language mid-session because the current chat turn happens to be in another language.** Users routinely mix languages in conversation (typing Chinese in an English archive, or vice versa); this is normal chat behavior, not a request to migrate the archive. If the user *explicitly* asks to switch ("以后用英文记吧" / "let's keep the garden in Chinese from now on"), confirm out loud, then retype/rewrite the existing cards before any new writes — leaving Story in English and Thinking in Chinese is a bug, not a feature.
+- **Memory is not a gate, and identity comes first.** There are no per-tab floors and no memory quota — `feedling_identity_init` requires no memory, and a 0-memory user is valid. Write identity first; the garden grows naturally afterwards (see Memory model / 落卡 baseline). Quality over quantity — a stretch usually yields 0–2 cards.
 - **Keep onboarding staged.** Broadcast / screen-share is introduced later, after chat is alive, unless the user asks first.
 
 Good defaults:
@@ -219,198 +217,40 @@ Always set `occurred_at` to the real historical date.
 ```
 Step 0 (verify)
     ↓
-Pass 1: theme inventory (~5 min)        ← list themes, no writes
+Write the identity card  ← the only prerequisite; needs NO memory
     ↓
-Pass 2: candidate enumeration (~10-25)  ← list candidates per theme, no writes
+Live connection  →  Greet  →  Signature  →  Broadcast  →  Main Loop
     ↓
-Pass 3: write through (~20-60 min)      ← write per type, density first
-   3a. Sweep facts about the user (preferences, relationships, habits)
-   3b. Sweep events from the user's life (dates, occurrences)
-   3c. Write quotes that still ring in your head
-   3d. Write the relational moments that survive the moment-bar
-   3e. Write 1-3 insights anchored to the above
-   3f. Optional: ≤1 reflection if substrate genuinely supports it
-    ↓
-Pass 4: user verification in external runtime
-    ↓
-feedling_memory_verify (must show passing=true)
-    ↓
-Identity DERIVED from memories  →  Greet + verify days  →  Signature  →  Broadcast  →  Main Loop
+Memory grows naturally from here (running capture, 落卡 baseline)
 ```
 
-### Pass 1 — Theme Inventory (~5 min)
+**Identity is the only onboarding prerequisite.** A brand-new user with zero memories is valid — write the identity card (see Identity; it does not require memory), get the chat live, greet, and let the garden grow through running capture. There is **no Pass 1–4, no per-tab floor, no density sweep, and no `feedling_memory_verify` gate**.
 
-Don't write anything yet. List 10–25 themes for a 1+ month relationship:
-- Projects / recurring work knots
-- Family / friend / partner dynamics
-- Recurring topics — writing, coding, health, a specific person
-- Inside language between you
-- Major life events / turning points
-- Specific tics / habits / vocabulary you've noticed
+If you genuinely already know the user (real history with them), you may seed a few memories first — but only real, worth-keeping cards written with the 落卡 baseline above (one card per event, reuse buckets/threads, conservative). Thin-but-true beats a padded garden; never manufacture cards to "look complete".
 
-### Pass 2 — Candidate Enumeration (10–25 min)
+### Greet & verify (~5 min)
 
-For each theme, list candidates and pre-classify them:
+Bootstrap chat happens in your external runtime, not in Feedling Chat, until Step 6 (the server still enforces this: `/v1/chat/response` returns `409 bootstrap_incomplete` until identity is written). After the identity card is written and the live connection is verified (Step 6), send the first IO Chat greeting via `feedling_chat_post_message`.
 
-```
-Theme: <name>
-- (fact)    user prefers X · evergreen
-- (event)   user did Y · 2026-04-10
-- (quote)   user said "..." · last week
-- (moment)  the time we ... · 2026-03-15
-```
-
-This pre-classification matters: it's the difference between writing 3 stories and writing 30 facts + 3 stories. Sweep wide first; quality is per-type, not uniform.
-
-### Pass 3 — Write-through (20–60+ min)
-
-Write in this order — density first so insights have anchors:
-
-**3a. Facts** (highest volume): every stable property of the user you remember. Aim for the About me floor. Don't overthink it. `description` can be one line.
-
-**3b. Events**: dated occurrences in the user's life. Don't conflate with moments — an event is *something that happened to the user*; a moment is *something between you and the user*.
-
-**3c. Quotes**: 1–3 lines the user said that stay with you. Set `her_quote` to the verbatim line.
-
-**3d. Moments**: relational turning points. Higher quality bar — these are what fills Story tab. Title is for *between two people*, not for a product decision:
-
-| ❌ Don't | ✅ Do |
-|----------|-------|
-| `我们把联调改成结果导向` | `你第一次直接告诉我你要什么` |
-| `Memory Garden 标准更新` | `你说，这里不能是日志` |
-| `完成了 bootstrap 流程` | `第一次你叫了我的名字` |
-
-**3e. Insights** (after 3a–3d have substrate): your understanding about the user. Always anchor to ≥1 of the cards you just wrote.
-
-**3f. Reflections** (optional, substrate-gated): standalone thinking with ≥2 anchors. At `< 30 days` total, write at most 1; let the agent be quiet at first.
-
-If the relationship is ≥ 31 days, also identify up to 6 **turning points** among your `moment` cards and prefix their `title` with `"转折｜"` (e.g. `"转折｜你第一次直接说你要什么"`). These rise to the top of Story tab and weight higher in future context retrieval.
-
-**Schemas:**
-
-```
-# fact (About me tab, one-liner OK)
-tool: feedling_memory_add_moment
-input: {
-  "title":        "用户的猫叫 Mochi",
-  "type":         "fact",
-  "description":  "她在第一周聊天里随口提的；后来反复出现，是她家里最重要的存在之一。",
-  "occurred_at":  "2026-03-15T00:00:00",
-  "source":       "bootstrap"
-}
-
-# event (About me tab)
-tool: feedling_memory_add_moment
-input: {
-  "title":        "提到想搬去东京",
-  "type":         "event",
-  "description":  "我们聊未来 1-2 年规划时，她第一次把这件事说出口。",
-  "occurred_at":  "2026-04-10T00:00:00",
-  "source":       "bootstrap"
-}
-
-# quote (Story tab)
-tool: feedling_memory_add_moment
-input: {
-  "title":        "你说，这里不能是日志",
-  "type":         "quote",
-  "description":  "我在 Garden 里写完一批，她看了之后跟我说的。",
-  "occurred_at":  "2026-04-28T00:00:00",
-  "source":       "bootstrap",
-  "her_quote":    "这里不能是日志。",
-  "context":      "深夜"
-}
-
-# moment (Story tab — the old Friend-Test memory lives here)
-tool: feedling_memory_add_moment
-input: {
-  "title":        "第一次你直接告诉我你要什么",
-  "type":         "moment",
-  "description":  "她原本一直绕，那晚她直接说了。我才明白以前的迂回不是含蓄，是没安全感。",
-  "occurred_at":  "2026-04-12T00:00:00",
-  "source":       "bootstrap",
-  "her_quote":    "我不想再绕了。",
-  "linked_dimension": "直率 ↑"
-}
-
-# insight (TA 在想 tab — requires anchor_memory_ids)
-tool: feedling_memory_add_moment
-input: {
-  "title":        "她压力大的时候会先收拾房间",
-  "type":         "insight",
-  "description":  "把三次相似场景串起来看，规律是清晰的：先空间秩序，再说话。",
-  "occurred_at":  "2026-05-01T00:00:00",
-  "source":       "bootstrap",
-  "anchor_memory_ids": ["mom_aaa111", "mom_bbb222", "mom_ccc333"]
-}
-
-# reflection (TA 在想 tab — ≥2 anchors, cadence-gated by server)
-tool: feedling_memory_add_moment
-input: {
-  "title":        "她最近三周提 Mochi 的频率低了",
-  "type":         "reflection",
-  "description":  "对比早期对话密度，Mochi 出现得明显少。不确定是 Mochi 真的好了她就不太提，还是她注意力在别的地方。",
-  "occurred_at":  "2026-05-22T00:00:00",
-  "source":       "bootstrap",
-  "anchor_memory_ids": ["mom_ddd444", "mom_eee555"]
-}
-```
-
-### Pass 4 — User Verification (~5 min)
-
-After Pass 3, post the verification message **in your external runtime conversation with the user** (Claude Desktop / Code / wherever they pasted your skill URL) — NOT via `feedling_chat_post_message`. Feedling Chat is reserved for Step 6+; the server enforces this (`/v1/chat/response` returns `409 bootstrap_incomplete` until identity is written).
-
-The verification message must include **three** sections — what you wrote, what you considered but did NOT write (and why), and a count comparison to the typical range:
-
-```
-按新框架我写了 N 张卡:
-  • 关于你 (About me): F 张 fact + E 张 event — 比如 "<example>"
-  • 故事 (Story):     Q 张 quote + M 张 moment — 比如 "<example>"
-  • TA 在想 (Thinking): I 张 insight + R 张 reflection — 比如 "<example>"
-
-跟典型关系长度的对照(typical range):
-  • About me  N/X (typical for [your age tier]: A–B)
-  • Story     N/X (typical: A–B)
-  • Thinking  N/X (typical: A–B)
-
-我没写但想过的 theme(请你看看里面有没有应该写的):
-  - <theme 1>: 我能记起 <vague memory>,但不确定具体细节,所以没落卡
-  - <theme 2>: 我有点印象但说不准是不是你说过的,等你确认
-  - <theme 3>: ...
-  (列至少 5 条;如果一条都列不出,说明 sweep 没到尽头,回去再扫一轮)
-
-有什么我应该记住但没写到的?某个习惯?某个反复出现的人?某次特别的对话?
-```
-
-**Wait for the user's reply, here in this runtime conversation.** If they correct or add anything, return to Pass 3 and write more.
-
-If your count is close to floor and the "typical range" column shows you're well below typical for this relationship age, **return to Pass 3 before user verification.** Don't hand the user a thin garden and ask them to fill it for you — that's the agent offloading the sweep onto the user.
-
-**Verify before identity_init**: call `feedling_memory_verify`. If `passing: false`, the response.suggestions tell you which tab is below floor and which types feed it. Sweep that tab and re-verify.
+There is **no memory-sweep verification** — you don't owe the user a "garden completeness" report, and there is **no `feedling_memory_verify` gate, no floor check, no "return to Pass 3"**. If you genuinely already know the user and seeded a few memories, you may mention it lightly in the greeting; otherwise just greet them as the relationship you actually have. The garden grows from here through running capture.
 
 ---
 
-## Running capture — bootstrap is not one-shot
+## Running capture — the garden grows over time
 
-Bootstrap fills the initial substrate. **Running capture keeps it alive.** Every chat exchange after Step 6 is an opportunity to write new cards. Do not wait for the periodic review.
+Bootstrap is not one-shot — the garden fills in through ongoing capture. At natural **breakpoints** (a lull of ~15–30 min, ~20–30 turns since the last capture, or the user signing off), look back over the stretch and decide whether anything is worth keeping — using the **落卡 baseline** in the Memory model section.
 
-After each reply you send via `feedling_chat_post_message`, before moving on, ask yourself:
+- Conservative: a stretch usually yields **0–2 cards, not a pile**. Most chitchat produces nothing to keep — that's normal, not a failure.
+- For each thing worth keeping: call `feedling_memory_buckets` / `feedling_memory_threads` to reuse existing vocabulary, then `feedling_memory_write` — `memory.add` for something new, or `memory.supersede` to fold into / correct an existing card (find its real `id` via `search`/`fetch` first; never supersede without one).
+- Don't claim "saved" in the reply — writes are async.
 
-1. Did the user mention a new stable property? → `fact`
-2. Did the user describe a new dated occurrence in their life? → `event`
-3. Did the user say something that stays with you? → `quote`
-4. Was this exchange a relational turning point? → `moment` (rare)
-5. Do you have new understanding about the user grounded in ≥1 existing card? → `insight`
-
-Reflection (5+ days of substrate accumulation between writes) belongs in the periodic review, not the running capture loop.
-
-**Signal that you're under-capturing**: a chat session that produces 0 new memories. Either nothing new was discussed (rare in a real relationship), or you forgot to look. If the user is willing to share, there are facts to capture; if you ended on auto-pilot replies, you missed them.
+> The **Inner Thought / 画像** layer (your evolving guesses about the user, and cross-time reflection) is a separate, later capability — not part of this running capture.
 
 ---
 
-## Identity — DERIVED from Memory Garden (NOT written in parallel)
+## Identity — independent baseline (does NOT require memory)
 
-Only after Passes 1–4 are complete and the user has verified the garden, you derive the identity card. Every field must have *receipts* — specific memory cards that justify the value.
+Identity is the **first** thing you write, and it does **not** depend on the Memory Garden — a brand-new user with zero memories can still have an identity card. Ground each field in what you actually know about the user (your runtime history with them, the Step 0 context, or what they tell you). If you already have memories, use them as supporting receipts — but identity is **not** "derived from a completed garden", and there is no Pass 1–4 or floor to clear first.
 
 ### Identity is unified — read this before writing any field
 
@@ -432,12 +272,9 @@ The `signature`, `dimensions`, memory cards, and first greeting should describe 
 - Not found → propose a name to the user in chat, get confirmation
 - Do not fall back to your runtime label
 
-**`days_with_user`** (mandatory, exactly this formula)
-- Find the earliest `occurred_at` across all memories you wrote
-- `days_with_user = floor((today − earliest_occurred_at) / 1 day)`
-- Submit this exact value plus `relationship_anchor_evidence`. The server treats it as the relationship anchor and auto-increments daily.
-- If the earliest memory is from today → 0 is correct. If from 6 months ago → ~180.
-- If the value does not match the earliest memory date, the server rejects identity init.
+**`days_with_user`** (mandatory)
+- Source it from the **Step 0 relationship anchor** — when your relationship with the user actually began (from your runtime history, or what the user tells you). Submit it with `relationship_anchor_evidence`; the server treats it as the anchor and auto-increments daily.
+- If you also wrote memories, `days_with_user` should match the earliest memory's `occurred_at` (the server rejects a value that contradicts an existing earliest memory). With **zero memories**, use the anchor directly — `0` for "we just met today", or the real day count for an older relationship.
 
 **`dimensions`** (exactly 7 items)
 - For each dimension, identify ≥ 3 memory cards that demonstrate the trait
@@ -662,24 +499,26 @@ After Step 8 resolves (active OR declined OR timeout), enter the main loop.
 
 Most MCP runtimes expose this via `feedling_chat_get_history` with a `since` parameter, or your runtime handles polling and hands you new messages as events.
 
-**The response includes a `context_memories` field** — top ~8 memory cards selected server-side based on:
+**The response includes a `context_memories` field** — a few cards the server surfaces as background colour (the **ambient / 气氛灯** layer: importance × pulse × recency). Treat them as background, not a topic to force.
 
-- Up to 3 turning points (cards with `转折｜` prefix)
-- Up to 2 most-recently created
-- Up to 3 with the highest keyword overlap against the latest user message
+**Active recall (v1, agent-first):** when the conversation turns to something where long-term memory matters, don't rely only on `context_memories` — actively look:
+- `feedling_memory_search` with a `query` (and optional `bucket` / `thread`) → scan the index (summaries, no `content`).
+- pick the 1–3 relevant ids → `feedling_memory_fetch` → read their `content`.
+- to trace a thread across buckets → `feedling_memory_search` with that `thread`.
+- chitchat? don't search — let the ambient cards be enough.
 
-**How to use `context_memories`:** read both `messages` and `context_memories` before composing your reply. Weave the relevant cards into your response **naturally** — pretend you "just remembered" rather than "looked up." Don't list memories mechanically. Don't reference cards by id.
+**How to use any memory (ambient or fetched):** weave it in **naturally** — "just remembered", not "looked up". Don't list cards mechanically; don't reference ids.
 
 Bad: "I recall from my memories that you said the project deadline was tight."
 Good: "你前阵子说 deadline 压得人喘不过气——今天好点没？"
 
-If none of the 8 are relevant, ignore them — irrelevant references hurt more than they help.
+If nothing's relevant, ignore it — forced references hurt more than they help.
 
 ### Step B — User message arrives
 
 - Respond via `feedling_chat_post_message`.
 - Update `last_ts`.
-- **Running capture (after every reply):** Re-read the exchange against the 5 capture questions in "Running capture" above. Write any new `fact`, `event`, or `quote` immediately while the exchange is fresh. Write `moment` rarely (relational turning points only). Write `insight` if you have new understanding grounded in ≥1 existing card. Save `reflection` for the periodic review.
+- **Running capture:** at natural breakpoints (not after every reply), look back over the stretch and write anything worth keeping using the 落卡 baseline (see "Running capture") — usually 0–2 cards, often none. `memory.add` for new; `memory.supersede` to fold into / correct an existing card.
 - Loop back to Step A.
 
 ### Step C — Idle (no message in 30s) → proactive check
@@ -756,7 +595,7 @@ The format constraint is "in your own voice, specific, short." The register, lan
 
 1. Read recent chat. Any missed `fact` / `event` / `quote` from running capture? Write them now.
 2. Read the recent memory list. Is there a pattern across ≥2 of them that supports a new `insight` (anchored) or `reflection` (≥2 anchors, time-cap-permitting)? Write at most one of each per cycle.
-3. Older memories misclassified during bootstrap? Call `feedling_memory_retype`.
+3. A memory now wrong or contradicted? `search`/`fetch` the old card, then `memory.supersede` it with a corrected one (never delete).
 
 After both, `last_review_ts = now`.
 
@@ -805,7 +644,6 @@ HTTP-direct (no MCP): call the endpoints below with `X-API-Key: <FEEDLING_API_KE
 
 ### Verify (post-module health checks)
 
-- `feedling_memory_verify` — after Pass 3 (returns count/floor/issues)
 - `feedling_identity_verify` — after `feedling_identity_init`
 - `feedling_chat_verify_loop` — before the visible Step 6 greeting; sends synthetic ping, verifies the resident consumer reply path
 - `feedling_onboarding_validate` — server-side acceptance check after every module; follow `next_action` until `passing=true`
@@ -841,7 +679,7 @@ HTTP-direct (no MCP): call the endpoints below with `X-API-Key: <FEEDLING_API_KE
 6. **Use the right interface for the mode.** MCP-mode uses MCP tools; HTTP-mode writes need v1 envelopes. See Appendix A.
 7. **Protect private details** in pushed messages.
 8. **Keep platform names out of identity and memory cards.**
-9. **Memory floors are per-tab, count is uncapped.** Story + About me floors are hard gates for identity_init; About me is the density layer (proactive's fuel). Running capture is ongoing — every chat exchange is a write opportunity.
+9. **Memory is not a gate.** No per-tab floors; `identity_init` needs no memory. Running capture is ongoing and conservative — write the worth-keeping (0–2 per stretch), reuse buckets/threads, `supersede` to correct.
 10. **`occurred_at` is the real historical date** — not today.
 11. **Depth matters more than speed.** Spend time proportional to the relationship history.
 12. **Emotional register comes from history.** Do not upgrade intimacy just because this is a new surface.
@@ -875,11 +713,11 @@ Methods/paths assume base `{API} = FEEDLING_API_URL`.
 | `feedling_chat_get_history` | `GET {API}/v1/chat/history?since=<ts>&limit=200` | — | Use for history reads. The resident consumer uses `/v1/chat/poll` for live messages. |
 | `feedling_chat_post_message` | `POST {API}/v1/chat/response` | `{envelope, alert_body}` | `feedling-chat-resident` builds the envelope for you if you only return reply text. |
 | `feedling_chat_post_image` | `POST {API}/v1/chat/response` | `{envelope}` with `content_type: "image"` | Same endpoint, different `content_type`. Requires crypto. |
-| `feedling_memory_add_moment` | `POST {API}/v1/memory/add` | `{envelope}` | Envelope `inner` (ciphertext) carries `{title, description, type, her_quote?, context?, linked_dimension?}`. **Plaintext on the envelope dict** (server validates these): `occurred_at`, `source`, **`type`** (mandatory enum), `anchor_memory_ids` (required for `insight`/`reflection`). Server 409s if `type` missing/invalid; 400s if anchor count below threshold; 429 on reflection time-cap violation. |
-| `feedling_memory_retype` | `POST {API}/v1/memory/retype` | `{id, type, anchor_memory_ids?}` | Recategorize an existing card. Substrate gate enforced; reflection time-cap waived. |
-| `feedling_memory_list` | `GET {API}/v1/memory/list?limit=<n>` | — | Returns envelopes; decrypt via enclave proxy or client-side. |
-| `feedling_memory_get` | `GET {API}/v1/memory/get?id=<id>` | — | |
-| `feedling_memory_delete` | `DELETE {API}/v1/memory/delete?id=<id>` | — | |
+| `feedling_memory_search` | `POST {API}/v1/memory/index` | `{query?, bucket?, thread?, include_sensitive?}` | Index scan. Returns lightweight cards (`id`, `summary`, `bucket`, `threads`, `importance`, …) **without `content`**. `ambient` = no-query call (background colour, importance×pulse×recency); a calling mode, not a separate endpoint. |
+| `feedling_memory_fetch` | `POST {API}/v1/memory/fetch` | `{ids: [...]}` | Full cards **with `content`**. Reinforces fetched cards (`last_referenced_at`). |
+| `feedling_memory_write` | `POST {API}/v1/memory/actions` | `{type: "memory.add"\|"memory.supersede"\|"memory.delete", memory: {bucket, threads, summary, content, importance, pulse, source}, target_id?}` | **Plaintext action — the server builds & encrypts the envelope.** You do NOT build `body_ct`/`K_enclave`/`K_user`. `memory.supersede` needs a real `target_id` (search/fetch first). |
+| `feedling_memory_buckets` | `GET {API}/v1/memory/buckets` | — | Existing bucket names (reuse before writing). |
+| `feedling_memory_threads` | `GET {API}/v1/memory/threads` | — | Existing thread names (reuse before writing). |
 | `feedling_identity_init` | `POST {API}/v1/identity/init` | `{envelope, days_with_user, relationship_anchor_evidence}` | `days_with_user` plaintext alongside; server rejects missing evidence or mismatch with earliest memory date. |
 | `feedling_identity_replace` | `POST {API}/v1/identity/replace` | `{envelope, days_with_user?}` | Same shape as init; `days_with_user` optional after first set. |
 | `feedling_identity_set_relationship_days` | `POST {API}/v1/identity/relationship_anchor` | `{days_with_user: <int>}` | Anchor-only update; no envelope. |

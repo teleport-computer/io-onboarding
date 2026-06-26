@@ -13,7 +13,7 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 ## Your path
 
 - The user may give you a `claude mcp add feedling --transport sse ...`-style MCP connection command or equivalent MCP server URL if your chat product supports MCP/tools.
-- Complete Step 0, the four memory passes, and identity exactly as the base skill requires.
+- Complete Step 0, identity, and the live connection exactly as the base skill requires. (Memory is no longer a gated four-pass sweep — no floors; identity first, garden grows naturally. See the base skill's Memory model.)
 - After each module, call `feedling_onboarding_validate`; if `passing=false`, fix `next_action` before continuing.
 - Do not assume a chat product can stay alive in the background.
 - Before sending the first IO chat greeting, verify the reply path with `feedling_chat_verify_loop`.
