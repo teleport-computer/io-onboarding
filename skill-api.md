@@ -16,9 +16,11 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill.md
 
 - The user supplies a model provider key to IO.
 - IO owns the runtime loop for chat and proactive messages.
-- The Memory Garden and identity card still use the same quality bar as the
-  base skill: no invented memories, no invented day count, and no runtime-label
-  persona names.
+- The Memory Garden and identity card follow the base skill's **v1** model: no
+  invented memories, no invented day count, no runtime-label persona names. Per
+  base v1, memory is **not** a gate — identity is written first and can be valid
+  with 0 memories; the garden grows naturally (no floors / no four-pass sweep).
+  On this route, identity/memory may also be seeded from imported materials.
 - There is no `claude mcp add ...` command on this path.
 - There is no independent `feedling-chat-resident` service on this path.
 - There is no custom webhook or user-hosted HTTP endpoint on this path.

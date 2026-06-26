@@ -25,7 +25,7 @@ The user needs the server route for reliable realtime IO chat.
 
 ## 中文同义规则
 
-- 按 base skill 完成 Step 0、四轮记忆 pass、identity。
+- 按 base skill 完成 Step 0、identity、live connection；记忆不再是四轮 gated sweep、没有 floor，identity 先建、记忆后续自然生长。
 - 每个模块后调用 `feedling_onboarding_validate`；如果 `passing=false`，先修 `next_action` 再继续。
 - 如果你的聊天产品支持 MCP/tools，用户会给你 `claude mcp add feedling --transport sse ...` 这类 MCP 连接命令，或等价的 MCP server URL。
 - 不要默认假设聊天产品能在后台一直活着。

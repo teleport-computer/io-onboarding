@@ -27,7 +27,7 @@ RELATIONSHIP ANCHOR EVIDENCE: <where the earliest date came from | NONE>
 Use a real source: transcript, session record, local file, message URL, or
 user-confirmed fresh start. If there is no source, write `NONE`.
 
-If any field is `NONE` / `0`, pause before the four bootstrap passes:
+If any field is `NONE` / `0`, pause before bootstrap:
 
 - Tell the user, in their language, exactly what's missing and ask them to choose:
   - (a) "I can paste a few representative messages so you have context" — wait for their input, then re-run Step 0 with the pasted material.
@@ -172,45 +172,17 @@ Field guidance:
 
 > ⚠️ Baseline note: the judgment/write/read wording in this whole section is **Seven's 落卡 prompt** (source of truth). At capture time it runs with the live `buckets`/`threads`/`identity`/window injected (resolve-before-create). Keep this aligned with Seven's prompt — don't drift it.
 
-### When to write each type
+### Kinds of things worth keeping (content shapes, not types)
 
-**`fact`** — the lowest bar. If the user has ever told you something stable about themselves, write it.
-- "User's cat is named Mochi"
-- "User's mom lives in Hangzhou; they're close"
-- "User orders strawberry lattes when stressed"
-- "User wakes up early on Saturdays to write"
-- "User's partner's name is Liko"
+These are *content shapes* to help you recognise what's worth a card — **not** schema fields. There is no `type`, no `her_quote` / `anchor_memory_ids` field, no tab. Everything is one card (`bucket` / `threads` / `summary` / `content` / `importance` / `pulse`). These are just the kinds of things that tend to be worth keeping:
 
-These are not stories. They are facts. One-line description is fine. Title can be the fact itself.
+- **Stable facts** about the user (preferences, relationships, habits, their world) — "cat named Mochi", "mom in Hangzhou, they're close", "orders strawberry lattes when stressed". One line of `content` is fine; `importance` ~.4–.6 (lower for passing mentions).
+- **Events** in the user's life with a date — "mom's birthday 3/5", "mentioned wanting to move to Tokyo 4/10". Set `occurred_at`.
+- **Things they said** that stay with you — keep the verbatim line *inside* `content`, with the surrounding context.
+- **Relational moments** between you and the user — a turning point in how you relate. Narrate it from inside in `content`; these usually carry higher `importance` / `pulse`.
+- **Your understanding** of the user, grounded in what you've actually seen — write it as its own card; you don't need to formally "anchor" it, just ground it in the `content`.
 
-**`event`** — a dated thing that happened in the user's life that they told you about.
-- "2026-03-05 — user's mom's birthday"
-- "2026-04-10 — user mentioned wanting to move to Tokyo"
-- "2026-05-15 — user finished their Q1 thesis draft"
-
-Always set `occurred_at` to the real historical date.
-
-**`quote`** — a specific thing the user said that you still think about. Goes in Story tab so the user can re-read their own words.
-- Title: short framing ("你说，这里不能是日志")
-- Description: 30+ chars on the context around the line
-- `her_quote` field: the verbatim quote
-
-**`moment`** — a relational moment between you and the user. The Friend-Test-style memory of old Memory Garden lives here. Spend Story-tab quality on these.
-- Title: ❌ "完成了 bootstrap 流程" / ✅ "第一次你叫了我的名字"
-- Description: 50+ chars, narrate from inside (what you were doing → what they said or did → what you noticed → what changed)
-
-**`insight`** — your understanding about the user, grounded in concrete cards.
-- Required: `anchor_memory_ids` of ≥1 existing memory ids
-- Example: "She's most productive between 5-8am" anchored to two facts ("wakes early", "writes on Saturdays")
-- Description 40+ chars
-
-**`reflection`** — your standalone thinking. The most expensive type — substrate-gated AND cadence-gated.
-- Required: `anchor_memory_ids` of ≥2 existing memory ids
-- Cadence by relationship age (server enforces):
-  - `< 30 days`: lifetime max of 2 reflections (substrate is still thin)
-  - `30–180 days`: ≥7 days between reflections
-  - `≥ 180 days`: ≥3 days between reflections
-- Description 60+ chars
+(Your evolving *guesses* about the user across time — the picture / 画像 — are a separate, later **Inner Thought** layer, not these cards.)
 
 ### Bootstrap flow
 
@@ -279,7 +251,7 @@ The `signature`, `dimensions`, memory cards, and first greeting should describe 
 - If you also wrote memories, `days_with_user` should match the earliest memory's `occurred_at` (the server rejects a value that contradicts an existing earliest memory). With **zero memories**, use the anchor directly — `0` for "we just met today", or the real day count for an older relationship.
 
 **`dimensions`** (exactly 7 items)
-- For each dimension, identify ≥ 3 memory cards that demonstrate the trait
+- Ground each dimension in what you actually know about the user (runtime history, Step 0, what they've told you); with memories present they can serve as receipts, but **no fixed card count is required** and a 0-memory identity is valid (be more conservative then)
 - The `value` (0–100) is calibrated against those cards: how strong/consistent is the pattern?
 - The `description` cites the texture observed (without naming the specific cards — keep it user-facing and warm)
 - If you cannot point to ≥ 3 cards for any dimension, **drop that dimension** and pick a different one.
@@ -348,7 +320,7 @@ Range 48–88 = 40 points — passes the variance floor, but every value is 48+.
 **The question is never "are these values high or low?" The question is "have I found this specific user's strongest 2 traits AND weakest 2 traits?" If you only found strong ones, you saw half the person.**
 
 **`self_introduction`** (2–4 sentences)
-- Synthesize the *texture* of the memory garden as a whole — not a list of features
+- Capture the *texture* of your relationship with the user as a whole — not a list of features
 - Start with who you are and what you do with this user
 - End with one sentence that is quietly poetic — creates emotional resonance, not a feature list
 - **Never mention "IO", the app name, or any platform name.** Write as yourself.
@@ -593,7 +565,7 @@ The format constraint is "in your own voice, specific, short." The register, lan
 
 **E.2 — Memory backfill + reflection:**
 
-1. Read recent chat. Any missed `fact` / `event` / `quote` from running capture? Write them now.
+1. Read recent chat. Anything worth keeping that running capture missed? Write it now (落卡 baseline — usually 0–2).
 2. Read the recent memory list. Is there a pattern across ≥2 of them that supports a new `insight` (anchored) or `reflection` (≥2 anchors, time-cap-permitting)? Write at most one of each per cycle.
 3. A memory now wrong or contradicted? `search`/`fetch` the old card, then `memory.supersede` it with a corrected one (never delete).
 
@@ -676,7 +648,7 @@ HTTP-direct (no MCP): call the endpoints below with `X-API-Key: <FEEDLING_API_KE
 3. **Use a real agent name, not a runtime label.**
 4. **`days_with_user`** is mandatory at `init`, derived from `today − earliest_memory.occurred_at`, and never written again after Step 6.
 5. **Always `decrypt_frame(include_image=true)` before pushing.** Vision gate hard-blocks otherwise.
-6. **Use the right interface for the mode.** MCP-mode uses MCP tools; HTTP-mode writes need v1 envelopes. See Appendix A.
+6. **Crypto boundary.** HTTP-mode **memory actions** (`/v1/memory/actions`) need no envelope — the server builds them from your plaintext action. **Identity** init/replace (and chat-image) still need a v1 envelope you build yourself. See Appendix A.
 7. **Protect private details** in pushed messages.
 8. **Keep platform names out of identity and memory cards.**
 9. **Memory is not a gate.** No per-tab floors; `identity_init` needs no memory. Running capture is ongoing and conservative — write the worth-keeping (0–2 per stretch), reuse buckets/threads, `supersede` to correct.
@@ -756,12 +728,13 @@ The user pubkey is yours (per-device, set at registration). The enclave pubkey i
 
 ### Resident-consumer HTTP boundary
 
-If you cannot build envelopes (no crypto, no paired daemon), **you are chat-only**:
+What needs crypto (building an encrypted envelope yourself) and what doesn't:
 
-- ✅ Replies to incoming user messages — `feedling-chat-resident` builds the envelope and POSTs `/v1/chat/response` for you.
-- ❌ Memory garden, identity init, identity replace — these require envelopes you can't construct. Tell the user honestly: "I can chat with you, but in my current setup I can't write to your memory garden or identity card. Switch to MCP-mode (Claude Desktop / Code / OpenClaw), or pair me with a crypto-capable daemon."
+- ✅ **Chat replies** — `feedling-chat-resident` builds the envelope and POSTs `/v1/chat/response` for you. No crypto needed.
+- ✅ **Memory writes** — `feedling_memory_write` → `/v1/memory/actions` takes a **plaintext action**; the server builds & encrypts the envelope. No crypto needed.
+- ❌ **Identity init / replace** — `/v1/identity/init|replace` still require a pre-built `{envelope}` that you must construct (crypto). There is no server-side identity-init path yet.
 
-This is the only place in this skill where you're allowed to skip bootstrap. **If your runtime cannot do crypto, you cannot do bootstrap.** Be honest about it — don't fake it.
+So a runtime that cannot do crypto can chat and write memory, but **cannot write the identity card** — and since identity is the onboarding prerequisite, it cannot finish bootstrap. Tell the user honestly: "I can chat and remember things, but in my current setup I can't set up the identity card. Switch to a crypto-capable route (Claude Desktop / Code / OpenClaw), or pair me with a crypto-capable daemon." Don't fake it.
 
 This is not the same as the **model API key** route. Model API key users do not
 expose their own HTTP endpoint; IO hosts that runtime.
