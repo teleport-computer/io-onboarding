@@ -252,6 +252,8 @@ Bootstrap is not one-shot — the garden fills in through ongoing capture, which
 
 Identity is the **first** thing you write, and it does **not** depend on the Memory Garden — a brand-new user with zero memories can still have an identity card. Ground each field in what you actually know about the user (your runtime history with them, the Step 0 context, or what they tell you). If you already have memories, use them as supporting receipts — but identity is **not** "derived from a completed garden", and there is no Pass 1–4 or floor to clear first.
 
+> **Crypto boundary (HTTP-direct):** unlike memory — where you submit a plaintext action and the **server** builds the encrypted envelope (`/v1/memory/actions`) — identity init still requires **you** to build the encrypted envelope yourself (`/v1/identity/init` takes a pre-built `{envelope}`). There is no server-side identity-init path yet. So if your runtime cannot do crypto, you can chat and even write memory, but you **cannot write the identity card** — which means you can't finish onboarding. Be honest with the user and switch to a crypto-capable path (or pair with one) rather than faking it.
+
 ### Identity is unified — read this before writing any field
 
 The user is interacting with **one continuous agent identity** — the same agent they have already been talking to in your runtime. Feedling is a new *capability*, not a new persona.
