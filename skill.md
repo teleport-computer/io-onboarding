@@ -132,6 +132,8 @@ There is **no `type`, no Story/About me/TA Thinking tabs, no per-tab floors**. A
 
 **Memory does not gate onboarding.** A brand-new user with zero memories is a valid state. Write the identity card first (see Identity), get the chat live, and let the garden grow from there — there is no floor to clear and no `feedling_memory_verify` to pass before `feedling_identity_init`.
 
+**But "not a gate" is not "skip all stable facts" (guardrail).** During onboarding, memory is not a quota and 0 cards is valid. However, if the user explicitly provides stable personal facts in the current setup context, such as their preferred name, role/background, long-term preferences, boundaries, or recurring collaboration style, write 0–2 lightweight memory cards before completing onboarding. Do not treat "memory is not a gate" as "skip all stable facts." If no memory is written, be able to explain why each obvious candidate was skipped. (This is a guardrail against over-restraint — not a return to the old memory floor, and not a push to mass-generate cards.)
+
 #### When to write — Seven's 落卡 baseline
 
 You're looking for **things worth remembering**, not archiving every line — the full chat log is already stored, so you don't need to restate it. Capture what will shape your understanding of the user, or what the user would want you to remember.

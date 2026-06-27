@@ -21,6 +21,11 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/test/skill.md
   base v1, memory is **not** a gate — identity is written first and can be valid
   with 0 memories; the garden grows naturally (no floors / no four-pass sweep).
   On this route, identity/memory may also be seeded from imported materials.
+  Guardrail (per base v1): "not a gate" is **not** "skip all stable facts" — if the
+  user explicitly states stable personal facts in the setup context (preferred name,
+  role/background, long-term preferences, boundaries, recurring collaboration style),
+  write 0–2 lightweight cards before completing onboarding; if none, be able to say
+  why each obvious candidate was skipped.
 - There is no `claude mcp add ...` command on this path.
 - There is no independent `feedling-chat-resident` service on this path.
 - There is no custom webhook or user-hosted HTTP endpoint on this path.
