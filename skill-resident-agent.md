@@ -85,6 +85,12 @@ runtime-specific gotchas like config delivery and gateway reloads; the light pat
   `io_cli.py perception now`, confirm JSON; then confirm the model can actually invoke the
   tool inside a chat turn (ask it something perceptual and check it calls the tool).
 
+**Memory is the same CLI but a strict two-step protocol — `memory-index` then `memory-fetch`** (same env / JSON contract as `perception`). Use memory when the user asks about stored facts, names, preferences, identity, history, prior conversations, "what I told you before", or anything depending on durable context — for purely current-turn questions that don't depend on prior context, answer directly. The order is mandatory:
+
+- **Step 1 — index first:** `python3 <consumer-checkout>/tools/io_cli.py memory-index [--query <text>]` returns compact card ids/summaries. Run it before answering any memory-dependent question; don't guess from vague recollection.
+- **Step 2 — you pick, then fetch:** the index is intentionally broad. *You* read the returned summaries and choose the relevant ids **with your own judgment** (the selection is yours, not the server's). If there are relevant candidates, `python3 <consumer-checkout>/tools/io_cli.py memory-fetch <id> …` the most relevant ids (usually 1–3, not a hard cap); for broad review questions you may fetch more, but only when the index clearly shows multiple directly related cards — prefer a small focused set over fetching everything. If there are none, don't fetch — say you found no relevant memory.
+- **Don'ts:** don't answer memory-dependent questions without indexing first; don't fetch ids that didn't come from the current recall step's index; don't fetch everything; don't rely on summaries when the user wants details, exact facts, or prior wording — fetch the card.
+
 中文同义规则（给自己装 IO 工具）：
 
 - consumer 只负责送聊天。要让 IO 在**聊天时**感知用户世界(当前天气/粗位置/运动/日历),你还得让
@@ -107,6 +113,12 @@ runtime-specific gotchas like config delivery and gateway reloads; the light pat
 - iOS 的感知开关在**服务端**门控——翻开关只改"工具返数据还是返 disabled",**开关一变你不用重注册/重配**。注册一次即可。
 - 第一条问候前从 service 环境做 smoke test:跑 `io_cli.py perception now` 确认 JSON;再确认模型在一个聊天 turn 里
   真能调起这个工具(问它一个跟感知有关的问题,看它有没有调)。
+
+**记忆是同一个 CLI,但是严格两步协议——先 `memory-index` 再 `memory-fetch`**(env / JSON 合同和 `perception` 一样)。涉及用户问到的存过的事实/名字/偏好/身份/历史/以前的对话/"我之前跟你说过…"、或任何依赖长期上下文的东西时,才用记忆;纯当前轮、不依赖以前上下文的问题,直接答。顺序是强制的:
+
+- **第一步——先 index:**`python3 <consumer-checkout>/tools/io_cli.py memory-index [--query <文本>]` 返回紧凑的卡 id/摘要。任何依赖记忆的问题,回答前先跑它,别凭模糊印象瞎猜。
+- **第二步——你来挑,再 fetch:**index 故意给得宽。**你**读返回的摘要、用**自己的判断**挑出相关的 id(挑选权在你、不在服务端)。有相关候选,就对最相关的 id(一般 1–3 条,不是硬上限)跑 `python3 <consumer-checkout>/tools/io_cli.py memory-fetch <id> …`;宽泛的回顾类问题可以多取几张,但仅当 index 里明确有多张直接相关的卡时——优先小而准,别全捞;没有相关的,就别 fetch——直说没找到相关记忆。
+- **不要:**依赖记忆的问题别不 index 直接答;别 fetch 不是本次召回(recall)那步 index 出来的 id;别全 fetch;用户要细节/原话/具体事实时别只凭摘要回答——该 fetch 就 fetch。
 
 ## Resident consumer readiness
 
