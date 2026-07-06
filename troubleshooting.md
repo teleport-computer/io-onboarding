@@ -59,11 +59,11 @@ Agent 会调 `feedling_identity_replace` 改名字。
 
 **想更快把历史长进花园**：让 agent 用 `add-memory` 把你导出的聊天记录 / 笔记蒸馏进来（`io_cli.py add-memory --file <path>`），不用干等自然生长。
 
-### 5. Identity 维度看起来是瞎写的 / 没受记忆支撑
+### 5. Identity 维度看起来是瞎写的 / 站不住
 
-**含义**：Identity 维度没有被具体记忆支撑。
+**含义**：Identity 维度指不出任何依据（不限于记忆）。
 
-**修法**：让 agent 给你**列出**每个维度的 receipts："对每个维度，告诉我哪些 memory cards 支撑这个值 (X)。如果指不出来，那个维度就不该写——换一个能 defend 的维度，重新派生。"
+**修法**：让 agent 给你**列出**每个维度的依据来源："对每个维度，告诉我它的值 (X) 站在什么依据上——Step 0 里的信息、你 runtime 跟用户的历史、用户明确告诉你的、或已有的 memory card 都算。一个都指不出来的维度就不该写——换一个能 defend 的，重新派生。"（身份**不要求**由记忆支撑，0 记忆也能有站得住的身份。）
 
 Agent 调 `feedling_identity_replace`。
 
@@ -206,11 +206,11 @@ Agent calls `feedling_identity_replace`.
 
 **To grow the garden from history faster**: have the agent distill your exported chat logs / notes with `add-memory` (`io_cli.py add-memory --file <path>`) instead of waiting for natural growth.
 
-### 5. Identity dimensions look made up / not grounded in memories
+### 5. Identity dimensions look made up / can't be defended
 
-**Meaning**: identity dimensions are not grounded in concrete memories.
+**Meaning**: identity dimensions can't point to any grounding (not just memory).
 
-**Fix**: ask the agent to **list** receipts for each dimension: "For each dimension, tell me which memory cards support its value. If you can't name them, drop the dimension and pick one you can defend, then re-derive."
+**Fix**: ask the agent to **list** the grounding for each dimension: "For each dimension, tell me what its value (X) stands on — Step 0 context, your runtime history with the user, something the user explicitly told you, or an existing memory card all count. If you can't name any, drop the dimension and pick one you can defend, then re-derive." (Identity does **not** require memory backing — a 0-memory identity can still be defensible.)
 
 Agent calls `feedling_identity_replace`.
 
