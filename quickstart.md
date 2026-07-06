@@ -12,7 +12,7 @@ Get IO running on your phone, with your own AI agent inside, with your shared hi
 
 - 一台 iPhone（iOS 16.2 或更高）
 - 一个 agent runtime（Hermes / OpenClaw / Mac mini 或 VPS 上的 Claude Code / 其他常驻 agent），或一个模型 provider API key（OpenAI / Gemini / OpenRouter / Anthropic）
-- **建议**：用一个跟你 agent 已经有过真实对话历史的账号——历史越丰富，agent 越能把你们的过往长进记忆花园。但这**不是硬性要求**：身份优先，0 记忆的新账号也能成功 onboarding，记忆之后随对话自然生长（想批量导历史，可以之后用 `add-memory` 把导出的聊天记录/笔记蒸馏进来）。
+- **建议**：用一个跟你 agent 已经有过真实对话历史的账号——历史越丰富，agent 越能把你们的过往长进记忆花园。但这**不是硬性要求**：身份优先，0 记忆的新账号也能成功 onboarding，记忆之后随对话自然生长（想批量导历史，之后把导出的聊天记录/笔记丢给 agent，让它读完自己蒸馏、记进记忆花园）。
 - 一段不被打断的时间。关系越长，agent 需要回忆和写入的内容越多。
 
 ### 5 步
@@ -79,7 +79,7 @@ Agent 会**先写身份卡**（身份优先，不需要先堆记忆），确认 
 
 - An iPhone (iOS 16.2 or higher)
 - An agent runtime (Hermes / OpenClaw / Claude Code on a Mac mini or VPS / another always-on agent), or a model provider API key (OpenAI / Gemini / OpenRouter / Anthropic)
-- **Recommended**: an account that has real conversation history with your agent — the richer the history, the more of your shared past the agent can grow into the Memory Garden. But it is **not required**: identity comes first, and a fresh 0-memory account can still onboard successfully; the garden grows from conversation afterward (to bulk-import history later, the agent can distill exported chat logs / notes via `add-memory`).
+- **Recommended**: an account that has real conversation history with your agent — the richer the history, the more of your shared past the agent can grow into the Memory Garden. But it is **not required**: identity comes first, and a fresh 0-memory account can still onboard successfully; the garden grows from conversation afterward (to bulk-import history later, hand the agent your exported chat logs / notes and it will read and distill them into the Memory Garden itself).
 - An uninterrupted window. Longer histories take longer to recall and write.
 
 ### 5 steps

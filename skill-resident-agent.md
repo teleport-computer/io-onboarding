@@ -91,7 +91,12 @@ runtime-specific gotchas like config delivery and gateway reloads; the light pat
 - **Step 2 — you pick, then fetch:** the index is intentionally broad. *You* read the returned summaries and choose the relevant ids **with your own judgment** (the selection is yours, not the server's). If there are relevant candidates, `python3 <consumer-checkout>/tools/io_cli.py memory-fetch <id> …` the most relevant ids (usually 1–3, not a hard cap); for broad review questions you may fetch more, but only when the index clearly shows multiple directly related cards — prefer a small focused set over fetching everything. If there are none, don't fetch — say you found no relevant memory.
 - **Don'ts:** don't answer memory-dependent questions without indexing first; don't fetch ids that didn't come from the current recall step's index; don't fetch everything; don't rely on summaries when the user wants details, exact facts, or prior wording — fetch the card.
 
-**Absorbing a file into memory — `add-memory`.** When the user hands you a file (or a chunk of text) to remember/absorb — notes, a profile, chat logs, preferences, history — distill it into the garden with `python3 <consumer-checkout>/tools/io_cli.py add-memory --file <path>` (same env / JSON contract as the others). This is for **bulk absorption of a whole document**; for the 0–2 cards you write from an ongoing conversation, keep using `feedling_memory_write` (running capture). The server distills + de-dupes and returns `{"ok": true, "status": "done", "memories_created": N}` — a **count, not titles**. After it returns, tell the user distillation is done and how many cards were written; if they want the specifics, run `memory-index` / `memory-fetch` to read the new cards before listing them — **don't invent card contents**. They can ask you to drop any — no need to confirm beforehand. Add `--no-wait` to fire-and-forget, or `--timeout <sec>` (default 120) to bound the poll. (This tool writes **memory only**; identity stays with `feedling_identity_init` / `_replace` / `_nudge`.)
+**Absorbing a file the user hands you.** When the user gives you a file (or a chunk of text) to remember/absorb, **you do the distillation yourself, locally** — never upload the raw file for anything to re-distill server-side. First `Read` it and judge what it is:
+
+- **Facts about the user** (preferences, events, history, a personal profile) → **memory**. Pull out the durable facts worth keeping (exactly like running capture, just sourced from a document), and write each card with `feedling_memory_write` (`memory.add` → `POST {API}/v1/memory/actions`) — the same write path you use for running capture; you submit a plaintext action, the server encrypts + stores it, no server-side LLM. `memory-index` first and `memory.supersede` an existing card instead of duplicating.
+- **A character card / persona description** (who you should be, how you speak, your traits) → **identity**. Distill it and update your identity card via `feedling_identity_replace` (full rewrite) or `feedling_identity_nudge` (a single dimension shift) — the identity tools you already use. Do **not** write persona material as memory cards.
+
+Either way, because **you** distilled and wrote it, you know exactly what changed — tell the user (they can ask you to drop or adjust anything).
 
 中文同义规则（给自己装 IO 工具）：
 
@@ -122,7 +127,12 @@ runtime-specific gotchas like config delivery and gateway reloads; the light pat
 - **第二步——你来挑,再 fetch:**index 故意给得宽。**你**读返回的摘要、用**自己的判断**挑出相关的 id(挑选权在你、不在服务端)。有相关候选,就对最相关的 id(一般 1–3 条,不是硬上限)跑 `python3 <consumer-checkout>/tools/io_cli.py memory-fetch <id> …`;宽泛的回顾类问题可以多取几张,但仅当 index 里明确有多张直接相关的卡时——优先小而准,别全捞;没有相关的,就别 fetch——直说没找到相关记忆。
 - **不要:**依赖记忆的问题别不 index 直接答;别 fetch 不是本次召回(recall)那步 index 出来的 id;别全 fetch;用户要细节/原话/具体事实时别只凭摘要回答——该 fetch 就 fetch。
 
-**把一份文件吸收进记忆——`add-memory`。** 用户丢给你一份文件(或一段文本)让你记住/吸收时——笔记、档案、聊天记录、偏好、过往——用 `python3 <consumer-checkout>/tools/io_cli.py add-memory --file <path>` 蒸馏进花园(env / JSON 合同和其它一样)。这个是**整份文档的批量吸收**;聊天过程中零散写的 0–2 张卡,继续用 `feedling_memory_write`(运行时 capture)。服务端会蒸馏+去重,返回 `{"ok": true, "status": "done", "memories_created": N}`——是**数量、不含标题**。返回后告诉用户蒸馏完成、写入了几条;用户想看具体写了啥,就跑 `memory-index`/`memory-fetch` 查出新卡再列——**别自己编卡内容**。他们可以让你删某条——不用事先确认。加 `--no-wait` 只提交不等,或 `--timeout <秒>`(默认 120)限制轮询。(这个工具**只写记忆**;身份仍归 `feedling_identity_init`/`_replace`/`_nudge`。)
+**吸收用户丢给你的文件。** 用户给你一份文件(或一段文本)让你记住/吸收时,**蒸馏由你自己在本地做**——绝不把原文上传给任何东西让服务端重新蒸馏。先用 `Read` 读,判断它是什么:
+
+- **关于用户的事实**(偏好、经历、过往、个人档案)→ **记忆**。挑出值得长期记的稳定事实(跟 running capture 一样,只是素材从对话换成文档),每张卡用 `feedling_memory_write`(`memory.add` → `POST {API}/v1/memory/actions`)写上去——就是你 running capture 那条写卡路;你提交明文 action,服务端加密+存,不跑 LLM。写前先 `memory-index` 查,有就 `memory.supersede` 别重复。
+- **人物卡 / 人设描述**(你该是谁、怎么说话、性格特质)→ **身份**。蒸馏后用 `feedling_identity_replace`(整卡重写)或 `feedling_identity_nudge`(单维度微调)更新你的身份卡——就是你本来就在用的身份工具。**别**把人设当记忆卡写。
+
+不管哪种,因为是**你自己蒸馏、自己写**的,你清楚改了啥——告诉用户(他们可以让你删掉或调整)。
 
 ## Resident consumer readiness
 
