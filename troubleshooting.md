@@ -57,7 +57,7 @@ Agent 会调 `feedling_identity_replace` 改名字。
 
 > "我之前明确告诉过你 X / Y / Z。把这些落成记忆卡（0–2 张，轻量即可）。"
 
-**想更快把历史长进花园**：让 agent 用 `add-memory` 把你导出的聊天记录 / 笔记蒸馏进来（`io_cli.py add-memory --file <path>`），不用干等自然生长。
+**想更快把历史长进花园**：把你导出的聊天记录 / 笔记丢给 agent，让它读完自己蒸馏、写进记忆花园（就是它平时 running capture 写卡那条路），不用干等自然生长。
 
 ### 5. Identity 维度看起来是瞎写的 / 站不住
 
@@ -79,7 +79,7 @@ Agent 调 `feedling_identity_replace`。
 
 **这现在是正常的。** 身份优先、0 记忆的账号也算成功——没有必须磨完的多轮记忆提取，快速结束不代表失败。
 
-**只有当**你明确给过稳定事实但 agent 一张都没落时，才让它补 0–2 张。想批量导历史，用 `add-memory`。
+**只有当**你明确给过稳定事实但 agent 一张都没落时，才让它补 0–2 张。想批量导历史，把文件丢给 agent 让它读完自己记进去。
 
 ### 8. Bootstrap 跑了比较久还没完成
 
@@ -204,7 +204,7 @@ Agent calls `feedling_identity_replace`.
 
 > "I explicitly told you X / Y / Z earlier. Write those as memory cards (0–2, lightweight)."
 
-**To grow the garden from history faster**: have the agent distill your exported chat logs / notes with `add-memory` (`io_cli.py add-memory --file <path>`) instead of waiting for natural growth.
+**To grow the garden from history faster**: hand the agent your exported chat logs / notes and have it read and distill them into cards itself (the same write path it uses for running capture) instead of waiting for natural growth.
 
 ### 5. Identity dimensions look made up / can't be defended
 
@@ -226,7 +226,7 @@ If the Garden has many cards, full rewrite is expensive — compromise by changi
 
 **This is now normal.** Identity comes first and a 0-memory account is a valid success — there is no mandatory multi-pass memory sweep to grind through, so a fast finish is not a failure.
 
-**Only if** you explicitly gave stable facts the agent skipped, ask it to seed 0–2 cards. To bulk-import history, use `add-memory`.
+**Only if** you explicitly gave stable facts the agent skipped, ask it to seed 0–2 cards. To bulk-import history, hand the file to the agent and have it read and distill it in.
 
 ### 8. Bootstrap has been running for a while without finishing
 
