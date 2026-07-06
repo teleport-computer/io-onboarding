@@ -94,7 +94,7 @@ runtime-specific gotchas like config delivery and gateway reloads; the light pat
 **Absorbing a file the user hands you.** When the user gives you a file (or a chunk of text) to remember/absorb, **you do the distillation yourself, locally** — never upload the raw file for anything to re-distill server-side. First `Read` it and judge what it is:
 
 - **Facts about the user** (preferences, events, history, a personal profile) → **memory**. This is the **same disciplined capture as running capture, just sourced from a document — not a bulk dump**: follow the base skill's Memory model / 落卡 baseline exactly. Restraint over volume (a document still yields a small curated set, not one card per line — keep what will still matter in a month). Before writing, call `feedling_memory_buckets` / `feedling_memory_threads` and **reuse an existing bucket/thread when one fits — don't mint near-duplicates**; set `bucket` / `threads` / `importance` / `pulse` per the baseline. For each card decide add vs merge/`memory.supersede` vs skip against what already exists (`memory-index` first). Then write it with `feedling_memory_write` (`memory.add` → `POST {API}/v1/memory/actions`) — you submit a plaintext action, the server encrypts + stores it, no server-side LLM.
-- **A character card / persona description** (who you should be, how you speak, your traits) → **identity**. Distill it and update your identity card via `feedling_identity_replace` (full rewrite) or `feedling_identity_nudge` (a single dimension shift) — the identity tools you already use. Do **not** write persona material as memory cards.
+- **A character card / persona description** (who you should be, how you speak, your traits) → **identity**, through the **same identity discipline as the base skill** — not a blind overwrite: follow the base skill's Identity model / field-by-field derivation rules (the fixed dimension set, grounding each value in real evidence, the calibration guidance). Use `feedling_identity_nudge` for a genuine shift in one dimension, or `feedling_identity_replace` for a full re-derivation — `feedling_identity_get` first so you build on the current card, not clobber it. Do **not** write persona material as memory cards.
 
 Either way, because **you** distilled and wrote it, you know exactly what changed — tell the user (they can ask you to drop or adjust anything).
 
@@ -130,7 +130,7 @@ Either way, because **you** distilled and wrote it, you know exactly what change
 **吸收用户丢给你的文件。** 用户给你一份文件(或一段文本)让你记住/吸收时,**蒸馏由你自己在本地做**——绝不把原文上传给任何东西让服务端重新蒸馏。先用 `Read` 读,判断它是什么:
 
 - **关于用户的事实**(偏好、经历、过往、个人档案)→ **记忆**。这跟 running capture 是**同一套有纪律的落卡,只是素材从对话换成文档——不是一股脑堆卡**:严格走 base skill 的 Memory model / 落卡 baseline。克制优先(一份文档也是挑出一小组精选卡、不是逐句一张——留下"一个月后还重要"的);写前先 `feedling_memory_buckets` / `feedling_memory_threads` 查、**能复用的桶/线程就复用,别造近义重复**;按 baseline 设 `bucket` / `threads` / `importance` / `pulse`;每张卡对照已有的判 add / merge(`memory.supersede`)/ skip(先 `memory-index` 查)。然后用 `feedling_memory_write`(`memory.add` → `POST {API}/v1/memory/actions`)写;你提交明文 action,服务端加密+存,不跑 LLM。
-- **人物卡 / 人设描述**(你该是谁、怎么说话、性格特质)→ **身份**。蒸馏后用 `feedling_identity_replace`(整卡重写)或 `feedling_identity_nudge`(单维度微调)更新你的身份卡——就是你本来就在用的身份工具。**别**把人设当记忆卡写。
+- **人物卡 / 人设描述**(你该是谁、怎么说话、性格特质)→ **身份**,走**跟 base skill 一样的身份纪律**——不是无脑覆盖:遵循 base skill 的 Identity model / 逐字段派生规则(固定的维度集、每个值都要有真实依据、校准指引)。单个维度有真实变化用 `feedling_identity_nudge`;要整卡重新派生用 `feedling_identity_replace`——先 `feedling_identity_get` 拿现状,在它基础上改、别一把盖掉。**别**把人设当记忆卡写。
 
 不管哪种,因为是**你自己蒸馏、自己写**的,你清楚改了啥——告诉用户(他们可以让你删掉或调整)。
 
