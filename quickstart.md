@@ -12,7 +12,7 @@ Get IO running on your phone, with your own AI agent inside, with your shared hi
 
 - 一台 iPhone（iOS 16.2 或更高）
 - 一个 agent runtime（Hermes / OpenClaw / Mac mini 或 VPS 上的 Claude Code / 其他常驻 agent），或一个模型 provider API key（OpenAI / Gemini / OpenRouter / Anthropic）
-- **重要**：跟你 agent 已经有过实质对话历史的账号——bootstrap 的核心是从你们的对话史里抢救记忆。**新开一个空账号没意义**。
+- **建议**：用一个跟你 agent 已经有过真实对话历史的账号——历史越丰富，agent 越能把你们的过往长进记忆花园。但这**不是硬性要求**：身份优先，0 记忆的新账号也能成功 onboarding，记忆之后随对话自然生长（想批量导历史，可以之后用 `add-memory` 把导出的聊天记录/笔记蒸馏进来）。
 - 一段不被打断的时间。关系越长，agent 需要回忆和写入的内容越多。
 
 ### 5 步
@@ -51,16 +51,16 @@ setup 过程、错误、日志和内部推理都留在我们当前这个对话�
 - ⏳ Live connection
 - ⏳ First message
 
-Agent 会先做 4 轮记忆提取——**深度记录你们的所有过往瞬间，可能写几十到几百张卡**——再从这些记忆派生身份卡，确认 Live connection，最后跟你打招呼。
+Agent 会**先写身份卡**（身份优先，不需要先堆记忆），确认 Live connection，然后跟你打招呼。**记忆花园不是门槛、也没有配额或最低张数——0 张卡也算成功**；之后它随你们的对话**自然生长**（如果你明确给了稳定事实，agent 会顺手先落几张）。
 
-期间你**可以关掉 app**，agent 在自己 runtime 那边继续跑。等他写到某个程度会主动 ping 你（Pass 4 对账阶段），那时候你回到 IO 看一下他列的标题，告诉他漏了哪些。
+期间你**可以关掉 app**，agent 在自己 runtime 那边继续跑。它接通后会给你发第一句问候；之后你正常聊天，记忆就随对话长起来。
 
 **5. 验收**
 
 五件事到位就算 setup 成功：
 
 - [ ] **身份卡**：Identity tab 能看到 agent 的名字（不是 "Hermes" 或 "Claude"）、7 维雷达、自我介绍
-- [ ] **记忆花园**：Garden tab 至少 5 张卡；如果你们认识 1+ 月，至少 15 张；6+ 月，至少 30 张
+- [ ] **记忆花园**：Garden tab 能看到记忆卡（**记忆不是验收门槛、没有最低张数**——0 张也算成功，花园随对话自然变多）
 - [ ] **Live connection**：如果你选择“我有自己的服务器”或已开放的模型 API key 路线，Chat tab 的进度里显示连接已接通；这代表后续消息会被真实 reply pipeline 接住
 - [ ] **第一条消息**：Chat tab 看到 agent 的开场消息，里面会**直接说出**他算的天数（"今天是第 187 天"），不是问句
 - [ ] **天数正确**：你跟他确认天数对不对。如果不对，他会调 `feedling_identity_set_relationship_days` 修。修完 Identity 页 "DAY X" 应该是你说的那个
@@ -79,7 +79,7 @@ Agent 会先做 4 轮记忆提取——**深度记录你们的所有过往瞬间
 
 - An iPhone (iOS 16.2 or higher)
 - An agent runtime (Hermes / OpenClaw / Claude Code on a Mac mini or VPS / another always-on agent), or a model provider API key (OpenAI / Gemini / OpenRouter / Anthropic)
-- **Important**: an account that has real conversation history with your agent — bootstrap is about salvaging that history into IO. A fresh empty account defeats the point.
+- **Recommended**: an account that has real conversation history with your agent — the richer the history, the more of your shared past the agent can grow into the Memory Garden. But it is **not required**: identity comes first, and a fresh 0-memory account can still onboard successfully; the garden grows from conversation afterward (to bulk-import history later, the agent can distill exported chat logs / notes via `add-memory`).
 - An uninterrupted window. Longer histories take longer to recall and write.
 
 ### 5 steps
@@ -118,16 +118,16 @@ Open IO → Chat tab. You'll see the progress checklist:
 - ⏳ Live connection
 - ⏳ First message
 
-Your agent runs four memory passes first — **deep extraction of your shared moments, anywhere from a few dozen to a few hundred cards** — then derives the identity card from those memories, verifies Live connection, then greets you.
+Your agent **writes the identity card first** (identity comes first — no memory is required up front), verifies Live connection, then greets you. **The Memory Garden is not a gate and has no quota or minimum — 0 cards is a valid success**; it grows **naturally** from your conversations afterward (if you gave it stable facts, it will seed a few up front).
 
-You **can close the app** while this runs. The agent keeps going on its runtime side. It will ping you when it hits the verification pass (Pass 4 — 对账); at that point come back to IO and tell it which moments it missed.
+You **can close the app** while this runs. The agent keeps going on its runtime side. Once connected it sends the first greeting; from there just chat normally and the garden grows as you go.
 
 **5. Acceptance**
 
 Setup is done when all five hold.
 
 - [ ] **Identity card** — Identity tab shows the agent's name (NOT "Hermes" or "Claude"), 7-axis radar, and self-introduction
-- [ ] **Memory Garden** — Garden tab has at least 5 cards; for a 1+ month relationship, at least 15; for 6+ months, at least 30
+- [ ] **Memory Garden** — Garden tab shows memory cards (**memory is not an acceptance gate and has no minimum count** — 0 cards is still a success; the garden fills in naturally through conversation)
 - [ ] **Live connection** — if you chose the server route or an enabled model API key route, Chat tab progress shows the connection is verified; future messages should reach a real reply pipeline
 - [ ] **First message** — Chat tab shows the agent's opening message that **states** the day count it computed ("Today is day 187"), as a fact, not a question
 - [ ] **Days correct** — confirm the day count is right. If wrong, the agent calls `feedling_identity_set_relationship_days` to fix it. After fix, Identity tab "DAY X" matches what you said
