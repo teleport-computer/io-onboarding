@@ -47,32 +47,17 @@ Agent 会调 `feedling_identity_replace` 改名字。
 
 (a) 如果 Memory Garden 里**有卡**：让 agent 重算 — "你 Garden 里最早一张卡的 `occurred_at` 是哪天？今天减它就是 days_with_user。请重新算并 set。" Agent 调 `feedling_identity_set_relationship_days`。
 
-(b) 如果 Memory Garden **是空的或者很少**：根因是 bootstrap 走得太浅。回到第 4 条。
+(b) 如果 Memory Garden **是空的或者很少**：这本身不是问题（0 卡合法）。天数不依赖记忆——用**关系锚点**直接算：让 agent 按你给的真实天数调 `feedling_identity_set_relationship_days`。
 
-### 4. Memory Garden 总卡数远低于关系长度 / 某个 tab 几乎是空的
+### 4. Memory Garden 卡数看起来偏少 / 某个 tab 几乎是空的
 
-**含义**：Agent 没有提取出足够支撑 identity 的记忆，或者某个 tab 完全没填——典型情况是只写了 Story tab（moment / quote），关于我 tab（fact / event）几乎是空的。**关于我 tab 才是密度燃料**——proactive 推送、callback、"TA 还记得我说过 X" 这些功能都靠它。
+**这多半不是问题。** 记忆花园**不是 onboarding 门槛**——没有 per-tab floor、没有配额、没有 `feedling_memory_verify` 门（这些机制已下线）。0 张卡也是合法的成功状态；验收只看**身份卡、关系锚点、聊天接通**。花园会随之后的对话**自然生长**。
 
-Per-tab floors（server 在 identity_init 时强制）：
+**只有当**你明确给过 agent 稳定事实（名字 / 角色 / 长期偏好 / 边界）它却一张都没落时，才让它补：
 
-| 关系长度 | Story (moment + quote) | 关于我 (fact + event) | TA 在想 (insight + reflection) |
-|---|---|---|---|
-| ≥ 6 个月 | 15 | **60** | 12 |
-| ≥ 1 月 | 8 | **25** | 5 |
-| 2 天 – 1 月 | 3 | **8** | 2 |
-| < 2 天 | 1 | 1 | 0 |
+> "我之前明确告诉过你 X / Y / Z。把这些落成记忆卡（0–2 张，轻量即可）。"
 
-**修法**：跟 agent 说：
-
-> "调 `feedling_memory_verify` 看每个 tab 现在的 count / floor。哪个 tab 没过 floor 就扫哪个 tab。重做 4 pass：
-> - Pass 1（唤醒）：列我们之间所有 themes，10–25 个
-> - Pass 2（清点）：每个 theme 列候选并预分类——哪些是 fact（我的属性/偏好/关系），哪些是 event（我生活里发生过的事），哪些是 quote（我说过的话），哪些是 moment（我们之间的事）
-> - Pass 3（落卡，按 type）：3a 先扫 fact（density first，关于我 tab 是重点）；3b 再扫 event；3c 再写 quote；3d 才写 moment；3e 写 insight 时 anchor 到具体卡；3f 可选 1 张 reflection
-> - Pass 4（对账）：按 tab 列给我看，问我漏了什么
->
-> Friend Test 已经被废了——别用那个标准筛 fact / event，那些短一句话就行。"
-
-Agent 应该重新走 4 pass。
+**想更快把历史长进花园**：让 agent 用 `add-memory` 把你导出的聊天记录 / 笔记蒸馏进来（`io_cli.py add-memory --file <path>`），不用干等自然生长。
 
 ### 5. Identity 维度看起来是瞎写的 / 没受记忆支撑
 
@@ -92,9 +77,9 @@ Agent 调 `feedling_identity_replace`。
 
 ### 7. Bootstrap 很快就"完成"了
 
-**含义**：这通常说明 Agent 没按 4 pass 做足记忆提取，或者只用了当前 context。
+**这现在是正常的。** 身份优先、0 记忆的账号也算成功——没有必须磨完的多轮记忆提取，快速结束不代表失败。
 
-**修法**：跟 agent 说："回去重做 Pass 1 / Pass 2：按主题重新清点候选 moments，覆盖完整关系长度。不要为了速度省略重要历史。"
+**只有当**你明确给过稳定事实但 agent 一张都没落时，才让它补 0–2 张。想批量导历史，用 `add-memory`。
 
 ### 8. Bootstrap 跑了比较久还没完成
 
@@ -209,32 +194,17 @@ Agent calls `feedling_identity_replace`.
 
 (a) If the Garden **has cards**: ask the agent: "What's the earliest `occurred_at` in my Garden? Subtract from today — that's `days_with_user`. Recompute and call `feedling_identity_set_relationship_days`."
 
-(b) If the Garden is **empty or sparse**: root cause is shallow bootstrap. See section 4.
+(b) If the Garden is **empty or sparse**: that's not a problem in itself (0 cards is valid). The day count does not depend on memory — it comes from the **relationship anchor**: have the agent call `feedling_identity_set_relationship_days` with the real day count you give it.
 
-### 4. Memory Garden total is far short of relationship length / one tab is nearly empty
+### 4. Memory Garden looks light / one tab is nearly empty
 
-**Meaning**: agent did not extract enough substrate. Typical failure: only the Story tab (moment / quote) is filled, while the About me tab (fact / event) is sparse. **About me tab is the density fuel** — proactive push, callbacks, and "TA still remembers I said X" all rely on it.
+**This is usually not a problem.** The Memory Garden is **not an onboarding gate** — there are no per-tab floors, no quota, and no `feedling_memory_verify` gate (those mechanisms are retired). 0 cards is a valid success; acceptance only checks the **identity card, relationship anchor, and live chat**. The garden grows **naturally** from later conversation.
 
-Per-tab floors (server enforces at `identity_init`):
+**Only if** you explicitly gave the agent stable facts (name / role / long-term preferences / boundaries) and it wrote none, ask it to seed a few:
 
-| Relationship age | Story (moment + quote) | About me (fact + event) | TA Thinking (insight + reflection) |
-|---|---|---|---|
-| ≥ 6 months | 15 | **60** | 12 |
-| ≥ 1 month | 8 | **25** | 5 |
-| 2 days – 1 month | 3 | **8** | 2 |
-| < 2 days | 1 | 1 | 0 |
+> "I explicitly told you X / Y / Z earlier. Write those as memory cards (0–2, lightweight)."
 
-**Fix**: tell the agent:
-
-> "Call `feedling_memory_verify` to see per-tab count vs floor. Sweep whichever tab is below floor. Redo the four passes:
-> - Pass 1 (wake): list every theme between us, 10–25
-> - Pass 2 (enumerate): for each theme list candidates **pre-classified by type** — fact (user properties), event (dated things), quote (their words), moment (relational)
-> - Pass 3 (write, type by type): 3a sweep facts first (About me is the density layer); 3b events; 3c quotes; 3d moments; 3e insights anchored to ≥1 prior card; 3f optionally 1 reflection
-> - Pass 4 (verify with me, per tab): list back per tab, ask what I missed
->
-> Friend Test is retired — don't use that bar to filter facts / events. Those are one-liners."
-
-Agent should redo the four passes.
+**To grow the garden from history faster**: have the agent distill your exported chat logs / notes with `add-memory` (`io_cli.py add-memory --file <path>`) instead of waiting for natural growth.
 
 ### 5. Identity dimensions look made up / not grounded in memories
 
@@ -254,9 +224,9 @@ If the Garden has many cards, full rewrite is expensive — compromise by changi
 
 ### 7. Bootstrap "finished" very quickly
 
-**Meaning**: the agent likely did not run the four passes deeply enough, or only used current context.
+**This is now normal.** Identity comes first and a 0-memory account is a valid success — there is no mandatory multi-pass memory sweep to grind through, so a fast finish is not a failure.
 
-**Fix**: tell the agent: "Redo Pass 1 / Pass 2: enumerate themes and candidate moments across the full relationship history. Do not optimize for speed."
+**Only if** you explicitly gave stable facts the agent skipped, ask it to seed 0–2 cards. To bulk-import history, use `add-memory`.
 
 ### 8. Bootstrap has been running for a while without finishing
 
