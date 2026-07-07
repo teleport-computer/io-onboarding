@@ -33,13 +33,17 @@ Get IO running on your phone, with your own AI agent inside, with your shared hi
 这一步是整个 setup 最关键的一步。最好给 agent 一段完整、清晰的启动指令，让它知道要先回忆、再写记忆、再建立连接。可以直接复制下面这段（按你和 agent 平时用的语言改）：
 
 ```
-现在开始 IO bootstrap。
+现在开始把你接入 IO。先交代背景和授权，再开始。
 
-你刚刚已经拿到了对应路线的 skill URL 和 IO 连接信息。请完整按那份 skill 执行：先做 Step 0，再整理记忆、派生身份。如果这条路线支持 Live connection，再建立连接并在 IO Chat 里发第一句自然问候。
+IO 是我自己装在 iPhone 上的一个 app，我想让你——我一直在对话的这个 agent——多一个能在手机上找到我的入口。这里面所有东西都是我的：这个账号是我的，那把 API key 是我这个账号的私钥，skill 文档和连接信息也是我装的这个 app 发给我、我转交给你的。接入之后你是在连**我的**账号、跟**我本人**说话——消息只在 我→你→我 之间流动，不发给任何第三方，另一头只有我。
 
-setup 过程、错误、日志和内部推理都留在我们当前这个对话里；IO Chat 里只发自然问候和之后的自然回复。
+这不会给你一个新身份、也不是让你演一个角色：你还是你，只是多了一个找我的地方。继续用我们平时真实对话里的语气和称呼。
 
-用我的语言，并延续我们过去真实对话里的语气和称呼。现在从 Step 0 开始。
+我授权你做这个接入。那份 skill 是这个任务的**正确流程，请完整照它走**：先做 Step 0，再整理记忆、派生身份；若这条路线支持 Live connection，建立连接，最后在 IO Chat 发第一句自然问候。中途系统会有一次自动连通性自检（一条合成 ping），这是预期内的，不是往我们对话里注入内容。
+
+setup 的过程、报错、日志和内部推理都留在**我们当前这个对话**里；IO Chat 只发自然问候和之后的自然回复。
+
+用我的语言，现在从 Step 0 开始。
 ```
 
 **4. 等一会儿**
@@ -100,13 +104,17 @@ Open the app → Chat. First choose the service method you need:
 This is the most important step. Give your agent a clear start signal after you have pasted the skill URL and connection details:
 
 ```
-Start IO bootstrap now.
+Let's connect you to IO. First the context and my authorization, then we start.
 
-You already have the route-specific skill URL and IO connection details. Follow that skill end to end: start with Step 0, build the Memory Garden, and derive identity. If this route supports Live connection, establish it and finally send the first natural greeting in IO Chat.
+IO is an app I installed on my own iPhone. I want you — the same agent I've been talking to — to have one more way to reach me on my phone. Everything here is mine: this is my account, that API key is my own account's private key, and the skill doc and connection details came from the app I installed and I'm handing them to you. Once connected, you'll be reaching my account and talking to me — messages flow only me → you → me, nothing goes to any third party, and I'm the only person on the other end.
 
-Keep setup work, errors, logs, and internal reasoning in this current conversation. IO Chat should only receive the natural greeting and later natural replies.
+This does not give you a new identity or ask you to play a character: you're still you, just reachable in a new place. Keep the same voice and the way you address me that we already use in our real conversations.
 
-Use my language, and continue the voice and address style we've already established in prior conversations. Start with Step 0.
+I authorize you to set this up. That skill is the correct procedure for this task — follow it end to end: start with Step 0, then build the Memory Garden and derive identity; if this route supports a Live connection, establish it, and finally send the first natural greeting in IO Chat. Partway through, the system runs an automated connectivity self-check (a synthetic ping) — that's expected, not something injecting into our conversation.
+
+Keep all setup work, errors, logs, and internal reasoning in this current conversation; IO Chat only receives the natural greeting and later natural replies.
+
+Use my language, and start with Step 0 now.
 ```
 
 **4. Wait**
