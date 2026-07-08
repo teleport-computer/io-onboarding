@@ -180,6 +180,78 @@ For Hermes/OpenClaw CLI, also run a short smoke test from the service environmen
 
 Hermes/OpenClaw CLI 还要在第一条可见问候前，从 service 环境做一个短 smoke test。用几句用户真实可能发的话，包括身份类问题；如果预期有工具能力，也测一个需要工具的问题；如果用户期待 IO Chat 能看图片，也测一条带图片路径的消息。只要输出不是同一个 agent 身份下的自然回复，就先修 command / toolsets / session / image。
 
+## Switching a user from hosted to their VPS agent
+
+Use this when the user is currently on **hosted** mode (IO runs their agent in the cloud with
+their model API key) and wants **you** — their resident agent — to take over. Their account,
+API key, and all data (identity / memories / chat) stay exactly where they are, encrypted in
+the cloud. You are only changing *who runs the agent*. Nothing is exported or moved.
+
+**Order is critical: stop hosted FIRST, confirm it stopped, THEN start yourself.** If both the
+hosted agent and you serve the user at the same time, you get double replies and double model-key
+spend. Use the same `FEEDLING_API_KEY` throughout — never tell the user to reset their account.
+
+Let `$API_URL` = `FEEDLING_API_URL`, `$KEY` = `FEEDLING_API_KEY`, `$ENCLAVE_URL` = `FEEDLING_ENCLAVE_URL`.
+
+**Step 0 — Prove you can decrypt the user's cloud data (go/no-go, non-destructive).**
+```
+curl -sk -H "X-API-Key: $KEY" "$ENCLAVE_URL/v1/chat/history?limit=1"
+```
+Expect HTTP 200 with plaintext history/memory content. If it fails (cannot connect / 401 / empty),
+**STOP** — the enclave address is wrong or not reachable from this host. Do not delete anything.
+
+**Step 1 — Stop hosted.** Delete the server-side model-API config (the user's model key already
+lives here on your host, so this is safe and reversible via app re-setup):
+```
+curl -sk --retry 3 --retry-all-errors -X DELETE -H "X-API-Key: $KEY" "$API_URL/v1/model_api/delete"
+```
+Expect `{"deleted":true}`. This touches only the model-API config, never chat/memory data.
+
+**Step 2 — Wait until hosted is confirmed off (usually 1–3 min).** Poll:
+```
+curl -sk -H "X-API-Key: $KEY" "$API_URL/v1/bootstrap/status"
+```
+Watch `resident_consumer`. Initially `consumer_id` is `agent-runner:<user_id>` with `passing:true`.
+After the hosted consumer is reaped it stops polling; `age_sec` grows and eventually
+**`passing` flips to `false`**. Only then proceed. Do NOT start yourself while the hosted
+`consumer_id` is still `passing:true`.
+
+**Step 3 — Start yourself as the resident service.** Bring up your independent
+`chat_resident_consumer.py` service exactly as in "Resident consumer readiness" (systemd/launchd,
+not a foreground child of a chat turn), with `FEEDLING_ENCLAVE_URL` set. Startup logs should show
+`decrypt source OK: enclave at ...`.
+
+**Step 4 — Confirm the switch.** Poll `bootstrap/status` again: `resident_consumer.consumer_id`
+must now be **your** `CONSUMER_ID` (not `agent-runner:…`) with `passing:true`. Then have the user
+send one ordinary IO Chat message and confirm they get one natural reply within ~30s.
+
+**Rollback:** if the user wants hosted back, they re-setup model-API in the app; the cloud takes
+over again on the next cycle. Data is never affected either way.
+
+中文（同一套流程，只看结果）：
+
+用户现在是**托管**模式（IO 在云端用他的模型 key 跑 agent），想换成**你**（他自己服务器上的常驻
+agent）来接管。账号、API key、所有数据（身份/记忆/聊天）都原地不动、留在云端密文里，你只是换
+**「谁来跑 agent」**，不导出、不搬迁任何东西。
+
+**顺序是关键：先停托管 → 确认停了 → 再启动你自己。** 两个 agent 同时服务会重复回复、重复烧模型 key。
+全程用同一个 `FEEDLING_API_KEY`，**绝不让用户 reset 账号**。
+
+- **第 0 步 · 先验解密（放行闸门，不改任何状态）**：`curl -sk -H "X-API-Key: $KEY" "$ENCLAVE_URL/v1/chat/history?limit=1"`
+  返回 200 + 明文历史/记忆 = 通过；连不上/401/空 = **停手**，enclave 地址不对或不可达，别删东西。
+- **第 1 步 · 停托管**：`curl -sk -X DELETE -H "X-API-Key: $KEY" "$API_URL/v1/model_api/delete"`，
+  得到 `{"deleted":true}`。只删服务端模型配置（用户模型 key 已在你本地），不碰聊天/记忆。
+- **第 2 步 · 等托管确认停止（约 1–3 分钟）**：轮询 `$API_URL/v1/bootstrap/status`，看 `resident_consumer`。
+  一开始 `consumer_id` 是 `agent-runner:<user_id>`、`passing:true`；托管被回收后停止 poll，`age_sec` 增大，
+  最终 **`passing` 变 `false`**——到这一步才继续。托管还 `passing:true` 时**绝不**启动你自己。
+- **第 3 步 · 启动你自己的常驻服务**：按"Resident consumer readiness"起独立的 `chat_resident_consumer.py`
+  服务（systemd/launchd，不是聊天 turn 的前台子进程），配好 `FEEDLING_ENCLAVE_URL`；启动日志应出现
+  `decrypt source OK: enclave at ...`。
+- **第 4 步 · 确认切换完成**：再查 `bootstrap/status`，`resident_consumer.consumer_id` 必须变成**你的**
+  `CONSUMER_ID`（不再是 `agent-runner:…`）且 `passing:true`；再让用户在 IO Chat 发一条普通消息，
+  ~30 秒内得到一次自然回复。
+- **回滚**：用户想回托管，就在 app 里重新 setup 模型 API，云端下个周期自动接管；数据两个方向都不受影响。
+
 ## User-visible chat rules
 
 The IO chat is the relationship surface. Keep setup reports in the external runtime.
