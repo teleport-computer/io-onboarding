@@ -25,6 +25,7 @@ the IO server live elsewhere.** Everything here is just docs.
 |------|----------|------|
 | **[quickstart.md](./quickstart.md)** | 5 步把 IO 装好、连上 agent | 你（测试者） |
 | **[troubleshooting.md](./troubleshooting.md)** | 卡住的时候的排错指南 | 你（测试者） |
+| **[switch-to-vps-agent.md](./switch-to-vps-agent.md)** | 已经在托管、想换成你 VPS 上的 agent（数据不丢） | 你（测试者） |
 | **[skill.md](./skill.md)** | 共同底座：记忆、身份、连接原则 | 你的 AI |
 | **[skill-resident-agent.md](./skill-resident-agent.md)** | 我有自己的服务器：VPS / Mac mini / Hermes / OpenClaw | 你的 AI |
 | **[skill-api.md](./skill-api.md)** | 我有模型 API key：OpenAI / Gemini / OpenRouter / Anthropic | IO / 你的 AI |
@@ -52,6 +53,7 @@ the IO server live elsewhere.** Everything here is just docs.
 |------|---------|----------|
 | **[quickstart.md](./quickstart.md)** | 5-step setup — install + connect your agent | You (the tester) |
 | **[troubleshooting.md](./troubleshooting.md)** | Common failure modes + fixes | You (the tester) |
+| **[switch-to-vps-agent.md](./switch-to-vps-agent.md)** | Already hosted? Switch to your VPS agent (no data loss) | You (the tester) |
 | **[skill.md](./skill.md)** | Shared base: memory, identity, connection principles | Your AI |
 | **[skill-resident-agent.md](./skill-resident-agent.md)** | I have my own server: VPS / Mac mini / Hermes / OpenClaw | Your AI |
 | **[skill-api.md](./skill-api.md)** | I have a model API key: OpenAI / Gemini / OpenRouter / Anthropic | IO / Your AI |
