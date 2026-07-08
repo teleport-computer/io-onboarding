@@ -91,6 +91,10 @@ runtime-specific gotchas like config delivery and gateway reloads; the light pat
 - **Step 2 — you pick, then fetch:** the index is intentionally broad. *You* read the returned summaries and choose the relevant ids **with your own judgment** (the selection is yours, not the server's). If there are relevant candidates, `python3 <consumer-checkout>/tools/io_cli.py memory-fetch <id> …` the most relevant ids (usually 1–3, not a hard cap); for broad review questions you may fetch more, but only when the index clearly shows multiple directly related cards — prefer a small focused set over fetching everything. If there are none, don't fetch — say you found no relevant memory.
 - **Don'ts:** don't answer memory-dependent questions without indexing first; don't fetch ids that didn't come from the current recall step's index; don't fetch everything; don't rely on summaries when the user wants details, exact facts, or prior wording — fetch the card.
 
+**Writing — the read verbs have write counterparts on the SAME CLI** (plaintext; the server encrypts, no client crypto — the same endpoint the consumer's running capture uses):
+- `python3 <consumer-checkout>/tools/io_cli.py memory-write --summary "…" --content "…" --bucket "…" --threads "…" [--importance 0-1] [--pulse 0-1] [--type fact|event|quote|moment]` — writes ONE card you already distilled. This is the concrete `feedling_memory_write` (`memory.add`). Run `memory-index` first to reuse buckets/threads and avoid dups. **NOT** a raw-file upload — you distill locally, then push finished cards.
+- `python3 <consumer-checkout>/tools/io_cli.py identity-write --self-introduction "…" [--signature "…"]` — patches the identity card (partial `identity.profile_patch`). This is the concrete `feedling_identity` partial write.
+
 **Writing memory or identity is always the same base-skill discipline.** Onboarding, running capture, or absorbing a file the user hands you — there is **no separate "bulk" / "import" path with looser rules**. Always apply the base skill's Memory model / 落卡 baseline and Identity model; never re-derive your own rules.
 
 **Absorbing a file the user hands you.** When the user gives you a file (or a chunk of text) to remember/absorb, **you do the distillation yourself, locally** — never upload the raw file for anything to re-distill server-side. First `Read` it. **If the user already told you what it is, trust their word**; otherwise judge it yourself. Then match the handling to the type:
@@ -128,6 +132,10 @@ Either way, because **you** distilled and wrote it, you know exactly what change
 - **第一步——先 index:**`python3 <consumer-checkout>/tools/io_cli.py memory-index [--query <文本>]` 返回紧凑的卡 id/摘要。任何依赖记忆的问题,回答前先跑它,别凭模糊印象瞎猜。
 - **第二步——你来挑,再 fetch:**index 故意给得宽。**你**读返回的摘要、用**自己的判断**挑出相关的 id(挑选权在你、不在服务端)。有相关候选,就对最相关的 id(一般 1–3 条,不是硬上限)跑 `python3 <consumer-checkout>/tools/io_cli.py memory-fetch <id> …`;宽泛的回顾类问题可以多取几张,但仅当 index 里明确有多张直接相关的卡时——优先小而准,别全捞;没有相关的,就别 fetch——直说没找到相关记忆。
 - **不要:**依赖记忆的问题别不 index 直接答;别 fetch 不是本次召回(recall)那步 index 出来的 id;别全 fetch;用户要细节/原话/具体事实时别只凭摘要回答——该 fetch 就 fetch。
+
+**写入——读命令有对应的写命令,在同一个 CLI 上**(明文;服务端加密、无需客户端 crypto——跟 consumer 的 running capture 打同一个端点):
+- `python3 <consumer-checkout>/tools/io_cli.py memory-write --summary "…" --content "…" --bucket "…" --threads "…" [--importance 0-1] [--pulse 0-1] [--type fact|event|quote|moment]` —— 写你已经蒸馏好的**一张**卡。这就是具体的 `feedling_memory_write`(`memory.add`)。写前先 `memory-index` 复用桶/线索、避免重复。**不是**上传原文——你本地蒸馏,再推成品卡。
+- `python3 <consumer-checkout>/tools/io_cli.py identity-write --self-introduction "…" [--signature "…"]` —— 补丁身份卡(局部 `identity.profile_patch`)。这是具体的 `feedling_identity` 局部写。
 
 **写记忆或身份,永远是同一套 base-skill 纪律。** onboarding、running capture、还是吸收用户丢来的文件——**没有**单独的"批量/导入"路、没有更松的规则。永远照 base skill 的 Memory model / 落卡 baseline 和 Identity model 执行,别自己另立规则。
 
