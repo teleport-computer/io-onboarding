@@ -721,6 +721,15 @@ Construction is non-trivial (X25519 + ChaCha20-Poly1305 + a per-message CEK wrap
 
 The user pubkey is yours (per-device, set at registration). The enclave pubkey is fetched from the **enclave's** attestation bundle — NOT from `{API}`. For cloud: `https://<app-id>-5003s.<dstack-domain>/attestation`. For self-hosted: your enclave's own `:5003/attestation`. Read `enclave_content_pk` from the returned JSON.
 
+**Verify the enclave before trusting that key (recommended).** The bundle is not just key distribution — it is a live TDX attestation you can check yourself with curl/openssl/python, no special tooling:
+
+1. **App identity**: `app_id` in the bundle == the `<app-id>` prefix of the URL you fetched it from.
+2. **Key↔quote binding**: `sha256(content_pk_bytes + tls_fpr_bytes + b"feedling-v1")` must appear as the quote's REPORT_DATA (byte offset 568 of `tdx_quote_hex`; `tls_fpr_bytes` = hex-decoded `enclave_tls_cert_fingerprint_hex`). This proves the encryption key was generated *inside* the attested TD — not injected by whoever answered the HTTP request.
+3. **Connection pinning**: the live TLS cert's `sha256(cert.DER)` == `enclave_tls_cert_fingerprint_hex` (`echo | openssl s_client -connect <host>:443 -servername <host> | openssl x509 -noout -fingerprint -sha256`). Don't trust the self-signed chain; trust this comparison — the same pinning the iOS app does.
+4. **Code identity is public**: `compose_hash` is embedded in `measurements.mr_config_id` (measured boot config); `enclave_release.compose_yaml_url` / `build_recipe_url` point at the public repo; `app_auth.contract` is the app-auth contract on-chain (`app_auth.explorer_base_url`).
+
+What this proves, honestly: steps 1–4 are self-consistency plus connection pinning — they tie the key, the TLS session, and the measured config to one enclave. To upgrade that to a cryptographic proof that a genuine Intel TDX machine measured this code, also verify the quote's signature chain with any DCAP/TDX verifier (e.g. dstack's verifier / Phala trust center) — optional, do it when the user wants the strong version. If any check mismatches, stop and show the user what differed instead of proceeding. Self-hosted enclaves have their own values: run steps 2–3 as-is, skip cloud-specific expectations.
+
 `owner_user_id` MUST match the authenticated caller — backend 403s on mismatch.
 
 ### Resident-consumer HTTP boundary
