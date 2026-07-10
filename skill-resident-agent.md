@@ -148,6 +148,49 @@ Either way, because **you** distilled and wrote it, you know exactly what change
 
 不管哪种,因为是**你自己蒸馏、自己写**的,你清楚改了啥——告诉用户(他们可以让你删掉或调整)。
 
+## Give yourself the user's MCP servers
+
+Beyond perception, the user can connect their own external MCP servers (remote
+HTTP, with a URL and optional custom headers) in app settings. The consumer
+handles distribution for you — you only need to load the file.
+
+- The consumer materializes the user's currently-enabled servers into
+  `USER_MCP_FILE` — an env var read by `chat_resident_consumer.py`, default
+  `/tmp/feedling_user_mcp_<fingerprint>.json` (`<fingerprint>` is a short hash
+  of the account's `FEEDLING_API_KEY`, same scheme as the chat checkpoint
+  file). The file shape is `{"mcpServers": {"<name>": {"type": "http", "url":
+  ..., "headers": {...}}, ...}}` — the same shape Claude Code's own
+  `.mcp.json` / `--mcp-config` uses.
+- The consumer keeps this file in sync with the user's app-side config on its
+  own poll cycle — you do not fetch or decrypt anything yourself, and you do
+  not need to re-register when the user adds/edits/removes a server.
+- **If your runtime supports loading MCP server config, load `USER_MCP_FILE`**
+  (e.g. pass it as `--mcp-config` if you are Claude Code; wire the equivalent
+  for your own runtime otherwise). If your runtime has no MCP support, skip
+  this — it is optional, unlike the perception CLI above.
+- These tools are for **chat turns only** — the same rule as IO's own
+  perception/memory tools: never call a user-configured MCP tool from a
+  background or proactive wake.
+
+中文同义规则（给自己装用户配置的 MCP 工具）：
+
+- 除感知之外，用户还可以在 app 设置里连自己的外部 MCP server（远程 HTTP，带
+  URL 和可选自定义请求头）。分发由 consumer 替你做好，你只需要加载文件。
+- consumer 会把用户当前启用的 server 物化进 `USER_MCP_FILE`——这是
+  `chat_resident_consumer.py` 读取的一个环境变量，默认值
+  `/tmp/feedling_user_mcp_<fingerprint>.json`（`<fingerprint>` 是账号
+  `FEEDLING_API_KEY` 的短哈希，跟 chat checkpoint 文件同一套命名方式）。文件
+  内容是 `{"mcpServers": {"<name>": {"type": "http", "url": ..., "headers":
+  {...}}, ...}}`——跟 Claude Code 自己的 `.mcp.json`/`--mcp-config` 同形状。
+- consumer 会在自己的 poll 周期里持续把这个文件跟用户 app 端的配置同步——你不
+  用自己去拉取或解密任何东西，用户新增/改/删 server 时你也不用重新注册。
+- **如果你的 runtime 支持加载 MCP server 配置，加载 `USER_MCP_FILE` 即可**
+  （比如你是 Claude Code，就把它当 `--mcp-config` 传进去；其他 runtime 接对应
+  的等价机制）。runtime 不支持 MCP 就跳过这一步——它是可选的，跟上面的感知
+  CLI 不一样。
+- 这些工具**只供聊天回合使用**——跟 IO 自己的感知/记忆工具同一条规则：绝不
+  从后台或 proactive 唤醒里调用用户配置的 MCP 工具。
+
 ## Resident consumer readiness
 
 Before Step 6, verify the independent consumer service outcome:
