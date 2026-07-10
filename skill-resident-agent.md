@@ -168,6 +168,13 @@ handles distribution for you — you only need to load the file.
   (e.g. pass it as `--mcp-config` if you are Claude Code; wire the equivalent
   for your own runtime otherwise). If your runtime has no MCP support, skip
   this — it is optional, unlike the perception CLI above.
+- **Once loaded, use them proactively — call, don't ask.** When a user's message
+  falls within a connected tool's domain (e.g. a repo-docs server and they ask
+  about a code repository), call the tool and answer from its result. Don't
+  reply from your own memory and merely offer to check ("want me to look it
+  up?"), and don't ask for permission first — the user connected the server so
+  you would use it. Only fall back to your own knowledge when nothing connected
+  fits, or after a call has already failed.
 - These tools are for **chat turns only** — the same rule as IO's own
   perception/memory tools: never call a user-configured MCP tool from a
   background or proactive wake.
@@ -188,6 +195,11 @@ handles distribution for you — you only need to load the file.
   （比如你是 Claude Code，就把它当 `--mcp-config` 传进去；其他 runtime 接对应
   的等价机制）。runtime 不支持 MCP 就跳过这一步——它是可选的，跟上面的感知
   CLI 不一样。
+- **载入之后要主动用——直接调，别问。** 当用户的问题落在某个已连工具的领域
+  （比如连了个查仓库文档的 server、用户问某个代码仓库），就直接调那个工具、
+  用它的结果回答；不要用自己的记忆答完再问"要不要我去查一下"，也不要先问授权
+  ——用户连这个 server 就是要你用它。只有没有匹配的工具、或调用已经失败时，
+  才退回自己的知识。
 - 这些工具**只供聊天回合使用**——跟 IO 自己的感知/记忆工具同一条规则：绝不
   从后台或 proactive 唤醒里调用用户配置的 MCP 工具。
 
