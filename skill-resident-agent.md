@@ -19,11 +19,11 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/test/skill.md
 - `agent_name` (in the identity card) must not be a runtime label — do not name yourself "Hermes" / "OpenClaw" / "Claude". But this is a constraint on the *name written in the card only*. It is NOT a reason to (a) switch which runtime carries the messages, or (b) edit your runtime's own persona/identity files (e.g. `IDENTITY.md`, `BOOTSTRAP.md`) to force a name. Use whichever runtime is your real agent as the transport, leave its files untouched, and set the card's `agent_name` separately. Choosing transport and naming the card are independent steps.
 - For image messages, the consumer must pass the decrypted image context to your runtime: OpenAI-compatible HTTP receives an `image_url` block, simple HTTP receives an `images` array, and CLI receives a local image file path. If your CLI has a first-class image flag, use `{image_path}` / `{image_paths}` in `AGENT_CLI_CMD`; otherwise the consumer appends the path to `{message}`.
 - Install the consumer as a service owned by the OS service manager (`systemd --user`, launchd, supervisor, pm2, etc.). The consumer may call Hermes/OpenClaw, but its process must be supervised independently from the current Hermes/OpenClaw conversation or top-level gateway. If you are currently inside Hermes/OpenClaw, write the env + service file, start/restart only `feedling-chat-resident`, then verify it from logs.
-- Complete Step 0, identity, and the live connection exactly as the base skill requires. (Memory is no longer a gated four-pass sweep — there are no floors; identity comes first and the garden grows naturally. See the base skill's Memory model.)
+- Complete Step 0, identity, and the live connection exactly as the base skill requires. (Memory is no longer a gated four-pass sweep — there are no floors; identity comes first and the garden grows naturally. See the base skill's Memory model.) **As a CLI-runtime agent, walk this through the `io_cli` command sequence in "Onboarding steps" below** instead of hand-calling `feedling_*` tools or raw HTTP — `io_cli` auto-sanitizes fuzzy issues for you, so it is much harder to fail a step by hand than reconstructing the payload yourself.
 - Keep the consumer service alive. It owns the ongoing IO chat loop by polling Feedling and calling your agent entry for each user message.
-- Verify the live reply path with `feedling_chat_verify_loop`.
-- After each module, call `feedling_onboarding_validate`; if `passing=false`, fix `next_action` and rerun it.
-- Only after `passing=true`, send the first IO greeting with `feedling_chat_post_message`.
+- Verify the live reply path with `io_cli chat-verify-loop` (the concrete CLI form of `feedling_chat_verify_loop`).
+- After each module, call `io_cli onboarding-validate` (the concrete CLI form of `feedling_onboarding_validate`); if `passing=false`, fix `next_action` and rerun it.
+- Only after `passing=true`, send the first IO greeting the normal way — **not** an `io_cli` command. Posting to IO Chat needs the resident consumer's crypto (it builds the envelope for you), so emit the greeting as your reply / call `feedling_chat_post_message`, whichever is your existing agent-output path, and let the consumer deliver it.
 
 Recommended service shape:
 
@@ -47,6 +47,36 @@ feedling-chat-resident
 - 图片消息也要由 consumer 把解密后的图片上下文交给你的 runtime：OpenAI-compatible HTTP 收到 `image_url` block，simple HTTP 收到 `images` array，CLI 收到本地图片文件路径。如果你的 CLI 有专门的图片参数，在 `AGENT_CLI_CMD` 里使用 `{image_path}` / `{image_paths}`；否则 consumer 会把路径追加进 `{message}`。
 - consumer 要作为 OS service manager 管理的独立服务运行（`systemd --user` / launchd / supervisor / pm2 等）。consumer 可以调用 Hermes/OpenClaw，但它自己的进程不属于当前 Hermes/OpenClaw 对话，也不挂在顶层 gateway 下面。如果你此刻就在 Hermes/OpenClaw 里操作，只写 env + service file，并只启动/重启 `feedling-chat-resident`，然后从日志验证。
 - 这个 consumer service 负责持续轮询 Feedling、把用户消息交给你、再把你的回复写回 Feedling。
+
+## Onboarding steps — canonical io_cli path
+
+For a CLI-runtime agent, walk Step 0 → identity → live connection through these `io_cli` verbs, in this order. They are the concrete form of the base skill's `feedling_*` tool names — call them instead of hand-rolling HTTP or guessing at payload shape; `io_cli` sanitizes fuzzy issues for you (out-of-range dimension values get clamped, dupes get dropped, missing pieces get truncated/filled), so a structural mistake is far less likely to block you.
+
+1. **`python3 <consumer-checkout>/tools/io_cli.py doctor`** — run this right after you can reach the box, before anything else. Five read-only probes: API / enclave / identity / memory / chat reachable. Fix whatever it reports failing before continuing — every later step depends on these being reachable.
+2. **`python3 <consumer-checkout>/tools/io_cli.py onboard-start`** — emits a "started" signal once, purely for tracking. Harmless to call more than once.
+3. **`python3 <consumer-checkout>/tools/io_cli.py onboard`** — tells you which step you're on and the exact next command (`next_cmd`), read from server state. Whenever you're unsure what's next, run this instead of guessing. Loop: run it, do what it says, run it again.
+4. **Step 0 + identity derivation** — do this per the base skill's Identity model (context verification output, field-by-field derivation, the 7-dimension calibration). `io_cli` doesn't replace this judgment, only the write that follows it.
+5. **`python3 <consumer-checkout>/tools/io_cli.py identity-init --agent-name "<name>" --self-introduction "<2-4 sentences>" --dimensions '<json list of 7 {name,value,description}>' --days-with-user <N> --relationship-anchor-evidence "<Step 0 source>"`** — creates the identity card. If you genuinely can't produce a relationship anchor (no Step 0 evidence, a truly fresh user), pass `--fresh-start` instead of `--days-with-user` / `--relationship-anchor-evidence` — it fills `days_with_user=0` plus a standard anchor so a missing anchor never blocks you. Don't try to work around a validation error by hand-building the `/v1/identity/init` call yourself — fix the flags and rerun.
+6. **`python3 <consumer-checkout>/tools/io_cli.py onboarding-validate`** — server-side acceptance gate; surfaces `next_action`. If it isn't passing, do what `next_action` says and rerun before moving on.
+7. **`python3 <consumer-checkout>/tools/io_cli.py chat-verify-loop`** — verifies the live reply path (the same check "Resident consumer readiness" below requires). Only proceed once this reports `passing`.
+8. **Send the greeting.** This is NOT an `io_cli` command — posting to IO Chat needs the resident consumer's crypto (it builds the envelope for you), so send it the normal way: emit it as your reply / call `feedling_chat_post_message`, whatever your existing agent-output path already is, and the consumer delivers it. `io_cli onboard` will call this the "greet" step and report there's no verb for it — that's expected, not a gap.
+
+**Other runtimes / raw HTTP:** `feedling_*` tool names and the direct `/v1/...` endpoints (base skill Appendix A) are the equivalent for a runtime that isn't CLI-shaped. If you're a CLI-runtime agent reading this skill, prefer `io_cli` over reconstructing those calls by hand — it exists so you don't have to.
+
+中文同义规则（onboarding 步骤 = 走 io_cli 顺序）：
+
+CLI-runtime agent 走 Step 0 → 身份 → live connection，规范路径是下面这串 `io_cli` 命令，按顺序来。它们是 base skill 里 `feedling_*` 工具名的具体落地——用它们，别自己拼 HTTP 或猜 payload 形状；`io_cli` 会替你修掉模糊的结构问题（维度值超范围会被夹回合法区间、重复项会去重、缺的字段会截断/补全），结构性失误基本挡不住你。
+
+1. **`python3 <consumer-checkout>/tools/io_cli.py doctor`** —— 一连上机器就先跑这个，排在最前面。5 项只读体检：API/enclave/identity/memory/chat 是否可达。它报的问题先修完再往下走——后面每一步都依赖这些东西可达。
+2. **`python3 <consumer-checkout>/tools/io_cli.py onboard-start`** —— 发一个"已开始"信号，幂等，多跑几次没关系。
+3. **`python3 <consumer-checkout>/tools/io_cli.py onboard`** —— 告诉你现在在哪一步、下一条该跑什么命令（`next_cmd`），读的是服务端状态。不确定下一步是什么就跑它，别瞎猜——循环：跑它 → 照做 → 再跑它。
+4. **Step 0 + 身份派生** —— 按 base skill 的 Identity model 做（上下文核验输出、逐字段派生、7 维校准）。`io_cli` 不替你做判断，只替你把结果写进去。
+5. **`python3 <consumer-checkout>/tools/io_cli.py identity-init --agent-name "<名字>" --self-introduction "<2-4句>" --dimensions '<7项 {name,value,description} 的 json>' --days-with-user <N> --relationship-anchor-evidence "<Step 0 来源>"`** —— 建身份卡。如果真的给不出关系锚点（没有 Step 0 证据、用户确实是全新关系），用 `--fresh-start` 代替 `--days-with-user`/`--relationship-anchor-evidence`——它会自动填 `days_with_user=0` + 一个标准锚点，让"给不出锚点"永远不卡住你。校验报错时别自己手搓 `/v1/identity/init` 去绕过去——改参数重跑。
+6. **`python3 <consumer-checkout>/tools/io_cli.py onboarding-validate`** —— 服务端验收闸门，给出 `next_action`。没过就照 `next_action` 做完再重跑，别跳过。
+7. **`python3 <consumer-checkout>/tools/io_cli.py chat-verify-loop`** —— 验证实时回复通路（跟下面"Resident consumer readiness"要求的检查一致）。看到 `passing` 才往下走。
+8. **发问候。** 这一步【不是】`io_cli` 命令——发进 IO Chat 需要 resident consumer 的加密（它替你建 envelope），所以按原有路径发：把它当你的正常回复发出去 / 调 `feedling_chat_post_message`，用你现有的 agent 输出路径，consumer 会替你送达。`io_cli onboard` 会把这一步叫 "greet" 并告诉你没有对应命令——这是预期行为，不是缺失。
+
+**其他 runtime / 裸 HTTP：** base skill Appendix A 里的 `feedling_*` 工具名和直接 `/v1/...` 端点，是给非 CLI 形态 runtime 用的等价物。如果你是 CLI-runtime agent，优先用 `io_cli`，别自己手搓那些调用——它就是为了让你不用手搓才存在的。
 
 ## Give yourself IO's tools (perception)
 
@@ -212,8 +242,8 @@ Before Step 6, verify the independent consumer service outcome:
 3. The consumer is polling `FEEDLING_API_URL/v1/chat/poll`.
 4. The consumer can call your agent entry and receive a real reply.
 5. The consumer can write replies to `FEEDLING_API_URL/v1/chat/response`.
-6. `feedling_chat_verify_loop` returns `passing=true`.
-7. `feedling_onboarding_validate` marks `resident_consumer` and `live_loop` as passing.
+6. `feedling_chat_verify_loop` returns `passing=true` (CLI-runtime: `io_cli chat-verify-loop`, step 7 in "Onboarding steps" above).
+7. `feedling_onboarding_validate` marks `resident_consumer` and `live_loop` as passing (CLI-runtime: `io_cli onboarding-validate`, step 6 above).
 8. One ordinary user message in IO Chat reaches you and gets one natural reply.
 9. IO's tool CLI (`tools/io_cli.py perception`) is registered as a native tool in your runtime and
    smoke-tested (returns JSON; the model can invoke it mid-chat). See "Give yourself IO's tools".
@@ -227,8 +257,8 @@ For Hermes/OpenClaw CLI, also run a short smoke test from the service environmen
 3. consumer 正在轮询 `FEEDLING_API_URL/v1/chat/poll`。
 4. consumer 能调到你的 agent 入口并得到真实回复。
 5. consumer 能把回复写回 `FEEDLING_API_URL/v1/chat/response`。
-6. `feedling_chat_verify_loop` 返回 `passing=true`。
-7. `feedling_onboarding_validate` 里 `resident_consumer` 和 `live_loop` 通过。
+6. `feedling_chat_verify_loop` 返回 `passing=true`(CLI-runtime 用 `io_cli chat-verify-loop`,对应上面"Onboarding steps"第 7 步)。
+7. `feedling_onboarding_validate` 里 `resident_consumer` 和 `live_loop` 通过(CLI-runtime 用 `io_cli onboarding-validate`,对应上面第 6 步)。
 8. 用户在 IO Chat 发一条普通消息后，你能自然回复一次。
 9. IO 的工具 CLI(`tools/io_cli.py perception`)已注册成你 runtime 的原生工具并做过 smoke test
    (返回 JSON;模型能在聊天 turn 里调起它)。见"给自己装 IO 工具(感知)"。
