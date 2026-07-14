@@ -30,6 +30,7 @@ the IO server live elsewhere.** Everything here is just docs.
 | **[skill-resident-agent.md](./skill-resident-agent.md)** | 我有自己的服务器：VPS / Mac mini / Hermes / OpenClaw | 你的 AI |
 | **[skill-api.md](./skill-api.md)** | 我有模型 API key：OpenAI / Gemini / OpenRouter / Anthropic | IO / 你的 AI |
 | **[skill-guide.md](./skill-guide.md)** | 内部诊断用：路线辨认 | 操作员 / 你的 AI |
+| **[PROMOTION.md](./PROMOTION.md)** | 内部维护用：test→main promote checklist | 操作员 |
 
 ### 怎么开始
 
@@ -58,6 +59,7 @@ the IO server live elsewhere.** Everything here is just docs.
 | **[skill-resident-agent.md](./skill-resident-agent.md)** | I have my own server: VPS / Mac mini / Hermes / OpenClaw | Your AI |
 | **[skill-api.md](./skill-api.md)** | I have a model API key: OpenAI / Gemini / OpenRouter / Anthropic | IO / Your AI |
 | **[skill-guide.md](./skill-guide.md)** | Internal diagnostic route selection | Operator / Your AI |
+| **[PROMOTION.md](./PROMOTION.md)** | Internal maintenance: test→main promote checklist | Operator |
 
 ### Getting started
 
