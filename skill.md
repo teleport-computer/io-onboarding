@@ -190,7 +190,7 @@ Memory grows naturally from here (running capture, 落卡 baseline)
 
 **Identity is the only onboarding prerequisite.** A brand-new user with zero memories is valid — write the identity card (see Identity; it does not require memory), get the chat live, greet, and let the garden grow through running capture. There is **no Pass 1–4, no per-tab floor, no density sweep, and no `feedling_memory_verify` gate**.
 
-If you genuinely already know the user (real history with them), you may seed a few memories first — but only real, worth-keeping cards written with the 落卡 baseline above (one card per event, reuse buckets/threads, conservative). Thin-but-true beats a padded garden; never manufacture cards to "look complete".
+If you genuinely already know the user (real history with them), seed the garden **proportionally to that history** — a long, well-documented relationship deserves more than the one-or-two cards a single conversation yields. Run `io_cli onboarding-validate` and read `memory_floor` (it scales with relationship age): treat it as the rough **shape** for how many real cards a relationship this age should carry, **not** a quota to hit or a gate to clear. Every card must still be a real, worth-keeping receipt written with the 落卡 baseline above (one card per event, reuse buckets/threads). If you genuinely have fewer real things than the floor suggests, write fewer — **thin-but-true always beats a padded garden; never manufacture cards to "look complete" or to reach a number**. This proportional seed is a one-time onboarding pass over the whole relationship; ongoing running capture stays at its usual 0–2 per stretch.
 
 ### Greet & verify (~5 min)
 
