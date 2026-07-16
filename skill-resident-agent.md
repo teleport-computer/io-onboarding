@@ -194,10 +194,16 @@ handles distribution for you — you only need to load the file.
 - The consumer keeps this file in sync with the user's app-side config on its
   own poll cycle — you do not fetch or decrypt anything yourself, and you do
   not need to re-register when the user adds/edits/removes a server.
-- **If your runtime supports loading MCP server config, load `USER_MCP_FILE`**
-  (e.g. pass it as `--mcp-config` if you are Claude Code; wire the equivalent
-  for your own runtime otherwise). If your runtime has no MCP support, skip
-  this — it is optional, unlike the perception CLI above.
+- **If your runtime supports loading MCP server config, load `USER_MCP_FILE`.**
+  For Claude Code, put the `{mcp}` placeholder in your `AGENT_CLI_CMD` (e.g.
+  `... {mcp} ...`) rather than a hard-coded `--mcp-config <path>`. The consumer
+  resolves `{mcp}` to `--mcp-config <USER_MCP_FILE>` only when you have enabled
+  servers, and to nothing when you don't — so it never breaks. A hard-coded
+  `--mcp-config` pointing at a path the consumer never materialized (e.g. you
+  have no MCP servers) makes Claude exit 1 on every chat turn ("Invalid MCP
+  configuration: MCP config file not found"). Wire the equivalent for your own
+  runtime otherwise. If your runtime has no MCP support, skip this — it is
+  optional, unlike the perception CLI above.
 - **Once loaded, use them proactively — call, don't ask.** When a user's message
   falls within a connected tool's domain (e.g. a repo-docs server and they ask
   about a code repository), call the tool and answer from its result. Don't
@@ -221,10 +227,14 @@ handles distribution for you — you only need to load the file.
   {...}}, ...}}`——跟 Claude Code 自己的 `.mcp.json`/`--mcp-config` 同形状。
 - consumer 会在自己的 poll 周期里持续把这个文件跟用户 app 端的配置同步——你不
   用自己去拉取或解密任何东西，用户新增/改/删 server 时你也不用重新注册。
-- **如果你的 runtime 支持加载 MCP server 配置，加载 `USER_MCP_FILE` 即可**
-  （比如你是 Claude Code，就把它当 `--mcp-config` 传进去；其他 runtime 接对应
-  的等价机制）。runtime 不支持 MCP 就跳过这一步——它是可选的，跟上面的感知
-  CLI 不一样。
+- **如果你的 runtime 支持加载 MCP server 配置，加载 `USER_MCP_FILE` 即可。**
+  Claude Code 请在 `AGENT_CLI_CMD` 里用 `{mcp}` 占位（如 `... {mcp} ...`），
+  不要写死 `--mcp-config <路径>`。consumer 只在你有启用的 server 时把 `{mcp}`
+  解析成 `--mcp-config <USER_MCP_FILE>`，没有 server 时解析成空——所以永远不会
+  出错。写死一个 consumer 从未物化的 `--mcp-config` 路径（比如你没有任何 MCP
+  server），会让 Claude 每个聊天回合都 exit 1（"Invalid MCP configuration: MCP
+  config file not found"）。其他 runtime 接对应的等价机制。runtime 不支持 MCP
+  就跳过这一步——它是可选的，跟上面的感知 CLI 不一样。
 - **载入之后要主动用——直接调，别问。** 当用户的问题落在某个已连工具的领域
   （比如连了个查仓库文档的 server、用户问某个代码仓库），就直接调那个工具、
   用它的结果回答；不要用自己的记忆答完再问"要不要我去查一下"，也不要先问授权
