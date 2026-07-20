@@ -54,7 +54,7 @@ grep -n "feedling-mcp\` on the \*\*\`" skill-resident-agent.md   # 英文段
 grep -n "feedling-mcp\` 的 \*\*\`" skill-resident-agent.md        # 中文段
 ```
 
-确认写的分支名（当前 main skill 写 `main`、test skill 写 `test`，按环境自动匹配）仍和 feedling-mcp 实际发布的那条一致；不一致就先对齐再 promote。
+确认写的分支名仍和 feedling-mcp 实际发布的那条一致。**注意：这个分支名跟 io-onboarding 自己的 test/main 车道无关**——两条 io-onboarding 车道都写 feedling-mcp *当前对外发布*的那条分支（目前 test 和 main 都写 `main`，因为 feedling-mcp 已 promote 到 main）。它不随 io-onboarding 的车道自动镜像，只跟 feedling-mcp 的发布状态走。feedling-mcp 换发布分支时，**两条车道要一起改**，别让 test 和 main 的 consumer 指向分叉。
 
 ## ④ diff 审阅
 
