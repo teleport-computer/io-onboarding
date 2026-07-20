@@ -140,6 +140,18 @@ iOS 上的信号：reset 完成时会弹出 "Your old key is dead." 的 sheet，
 
 **注意：** 旧账号的 chat / identity / memory garden 已经在服务端被删除了，找不回来。如果你只想轮换 key 但保留数据，**不要**用 Delete Account & Reset，用 Settings → Storage → "Regenerate API Key"。
 
+### 13. AI 每条消息都只回"来了 / 在了"这类报到语
+
+**症状**：你发什么它都只回一句到场报告（"来了。""在了。""记忆读完了，工具也接上了，有什么要做的？"），不接你的话题；回复偏慢（1-3 分钟），偶尔弹"这轮回复超时了"。
+
+**含义**：你的 agent 把每条消息都当成了"刚上线报到"。常见于 CLI agent（比如 Claude Code）每一轮都开了全新会话——而你 agent 的启动指令（CLAUDE.md / persona 文件里"唤醒后先读记忆、报到"之类）在每轮新会话里都会重新执行一遍，于是每条消息都触发一次开机仪式。
+
+**修法：**
+
+1. **更新 consumer**：2026-07-17 之后的 `feedling-chat-resident` 已修复此问题（resident 本地 Claude Code 恢复 `--resume` 会话续接，每轮不再是全新会话）。consumer 默认会自更新；手动更新 = 在 consumer 目录 `git pull` 后重启 service。
+2. **给 agent 的启动文件加一句兜底**（CLAUDE.md / persona 指令）："通过 IO 收到的消息是同一段进行中对话的下一句，不是新会话开机——不要重复读记忆 / 报到 / 自我介绍，直接回应消息内容。" 即使 consumer 已修复，会话轮换（对话攒得很长之后）仍会偶发一次冷启动，这句能兜住。
+3. 确认跑 consumer 的机器**常驻不休眠**——笔记本合盖会让回复和主动消息一起停摆。
+
 ### 还在卡住
 
 把以下信息发给我们：
@@ -328,6 +340,18 @@ iOS signal: when reset finishes, a "Your old key is dead." sheet appears with fr
 3. Reconnect the agent and send a message. Its next `feedling_bootstrap` will return `first_time` — the new account is empty; let it re-walk the bootstrap flow.
 
 **Note:** The old account's chat / identity / memory garden was deleted server-side and can't be recovered. If you want to rotate the key without losing data, **don't** use Delete Account & Reset — use Settings → Storage → "Regenerate API Key" instead.
+
+### 13. The AI answers every message with an arrival line ("I'm here." / "Memory loaded, what do you need?")
+
+**Symptom**: whatever you send, it replies with a check-in report ("I'm here.", "Memory read, tools connected — what do you need?") instead of engaging with what you said; replies are slow (1-3 min) and you occasionally get a "this turn timed out" bubble.
+
+**Meaning**: your agent treats every message as "just came online." Typical for CLI agents (e.g. Claude Code) when every turn opens a brand-new session — your agent's startup instructions (a boot ritual in CLAUDE.md / persona files: "on wake, read memory, then check in") re-run in every fresh session, so every message triggers the wake-up ceremony.
+
+**Fix:**
+
+1. **Update the consumer**: `feedling-chat-resident` from 2026-07-17 onward fixes this (resident local Claude Code is back on `--resume` session continuity; turns are no longer fresh sessions). The consumer self-updates by default; manual update = `git pull` in the consumer directory, then restart the service.
+2. **Add one guard line to your agent's startup file** (CLAUDE.md / persona instructions): "Messages arriving via IO are the next turn of one ongoing conversation, not a new session boot — don't re-read memory / check in / introduce yourself; answer the message directly." Even with the fixed consumer, session rotation (after a very long conversation) still cold-starts once — this line covers it.
+3. Make sure the machine running the consumer **stays awake** — a closed laptop lid stops both replies and proactive messages.
 
 ### Still stuck?
 
