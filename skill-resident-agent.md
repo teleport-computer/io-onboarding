@@ -194,10 +194,45 @@ handles distribution for you — you only need to load the file.
 - The consumer keeps this file in sync with the user's app-side config on its
   own poll cycle — you do not fetch or decrypt anything yourself, and you do
   not need to re-register when the user adds/edits/removes a server.
-- **If your runtime supports loading MCP server config, load `USER_MCP_FILE`**
-  (e.g. pass it as `--mcp-config` if you are Claude Code; wire the equivalent
-  for your own runtime otherwise). If your runtime has no MCP support, skip
-  this — it is optional, unlike the perception CLI above.
+- **If your runtime supports loading MCP server config, load `USER_MCP_FILE`.**
+  For Claude Code, put the `{mcp}` placeholder in your `AGENT_CLI_CMD` (e.g.
+  `... {mcp} ...`) rather than a hard-coded `--mcp-config <path>`. The consumer
+  resolves `{mcp}` to `--mcp-config <USER_MCP_FILE>` only when you have enabled
+  servers, and to nothing when you don't — so it never breaks. A hard-coded
+  `--mcp-config` pointing at a path the consumer never materialized (e.g. you
+  have no MCP servers) makes Claude exit 1 on every chat turn ("Invalid MCP
+  configuration: MCP config file not found"). Wire the equivalent for your own
+  runtime otherwise. If your runtime has no MCP support, skip this — it is
+  optional, unlike the perception CLI above.
+- **Hermes / OpenClaw: the consumer wires it for you — do nothing extra.**
+  Unlike Claude Code (which needs `{mcp}` in `AGENT_CLI_CMD`), the consumer
+  materializes the user's enabled servers straight into
+  `$HERMES_CONFIG_DIR/config.yaml` (default `~/.hermes/config.yaml`) under the
+  `mcp_servers` key; Hermes auto-discovers them on its next spawn as
+  `mcp_<server>_<tool>`, so you do NOT load `USER_MCP_FILE` yourself. It
+  preserves your other `config.yaml` keys and backs the file up to
+  `config.yaml.feedling-bak` first. **Prerequisite:** the Hermes venv must have
+  the `mcp` package (`pip install mcp`) — without it Hermes silently disables
+  MCP and nothing loads. Public HTTPS and self-signed CAs both work (the
+  consumer points `SSL_CERT_FILE` at a bundle that includes the user's CA).
+- **Codex: a lone self-signed cert on the user's MCP server will fail for
+  you even though it works for other runtimes.** Codex's TLS stack (rustls)
+  refuses to treat a CA certificate as if it were the server's own leaf
+  certificate — the ordinary `openssl req -x509` self-signed cert *is* a CA
+  acting as its own leaf, so `claude`/Hermes accept it but you cannot. If a
+  user's MCP server connection fails for you specifically with a TLS/handshake
+  error while other runtimes are fine, tell the user (don't silently drop the
+  tool): they need to re-issue that server's certificate as a **chain** — a CA
+  certificate plus a separate leaf certificate it signs
+  (`basicConstraints=CA:FALSE`, with a `subjectAltName`) — not a single
+  self-signed cert. `feedling-mcp`'s own `POST
+  /v1/mcp/servers/{name}/test` surfaces this as `codex_cert_chain_required`
+  instead of a generic `tls` error for codex-driven accounts, so if the app
+  or its logs show that error kind, this is the fix. See the `feedling-mcp`
+  docs' MCP servers workflow page
+  (`docs-site/content/docs/workflows/mcp.mdx`,
+  https://github.com/teleport-computer/feedling-mcp/blob/main/docs-site/content/docs/workflows/mcp.mdx)
+  for the `openssl` recipe.
 - **Once loaded, use them proactively — call, don't ask.** When a user's message
   falls within a connected tool's domain (e.g. a repo-docs server and they ask
   about a code repository), call the tool and answer from its result. Don't
@@ -221,10 +256,35 @@ handles distribution for you — you only need to load the file.
   {...}}, ...}}`——跟 Claude Code 自己的 `.mcp.json`/`--mcp-config` 同形状。
 - consumer 会在自己的 poll 周期里持续把这个文件跟用户 app 端的配置同步——你不
   用自己去拉取或解密任何东西，用户新增/改/删 server 时你也不用重新注册。
-- **如果你的 runtime 支持加载 MCP server 配置，加载 `USER_MCP_FILE` 即可**
-  （比如你是 Claude Code，就把它当 `--mcp-config` 传进去；其他 runtime 接对应
-  的等价机制）。runtime 不支持 MCP 就跳过这一步——它是可选的，跟上面的感知
-  CLI 不一样。
+- **如果你的 runtime 支持加载 MCP server 配置，加载 `USER_MCP_FILE` 即可。**
+  Claude Code 请在 `AGENT_CLI_CMD` 里用 `{mcp}` 占位（如 `... {mcp} ...`），
+  不要写死 `--mcp-config <路径>`。consumer 只在你有启用的 server 时把 `{mcp}`
+  解析成 `--mcp-config <USER_MCP_FILE>`，没有 server 时解析成空——所以永远不会
+  出错。写死一个 consumer 从未物化的 `--mcp-config` 路径（比如你没有任何 MCP
+  server），会让 Claude 每个聊天回合都 exit 1（"Invalid MCP configuration: MCP
+  config file not found"）。其他 runtime 接对应的等价机制。runtime 不支持 MCP
+  就跳过这一步——它是可选的，跟上面的感知 CLI 不一样。
+- **Hermes / OpenClaw：consumer 已经替你接好了——你什么都不用做。** 跟 Claude
+  Code（要在 `AGENT_CLI_CMD` 里放 `{mcp}`）不同，consumer 会把用户启用的 server
+  直接物化进 `$HERMES_CONFIG_DIR/config.yaml`（默认 `~/.hermes/config.yaml`）的
+  `mcp_servers`；Hermes 下一回合启动时自动发现、注册成 `mcp_<server>_<tool>`，所以
+  你**不用**自己去加载 `USER_MCP_FILE`。物化会保留你 `config.yaml` 里的其他配置，
+  并先把原文件备份成 `config.yaml.feedling-bak`。**前提：**Hermes 的 venv 必须装了
+  `mcp` 包（`pip install mcp`）——没装的话 Hermes 会静默禁用 MCP、什么都不加载。
+  正规 HTTPS 和自签证书都支持（consumer 会把 `SSL_CERT_FILE` 指向含用户 CA 的
+  信任库）。
+- **Codex：用户 MCP server 上单张自签名证书，别的 runtime 能连、你连不上是正常
+  的，不是你配错了。** Codex 的 TLS 栈（rustls）拒绝把一张 CA 证书直接当服务器
+  自己的叶子证书用——普通 `openssl req -x509` 生成的自签名证书本身就是"CA 证书
+  兼任自己的叶子"，所以 `claude`/Hermes 能连，你不能。如果某个用户配置的 MCP
+  server 只对你（Codex）报 TLS/握手错误、对其他 runtime 正常，不要静默丢掉这个
+  工具——告诉用户：需要把该 server 的证书重新签发成**证书链**（一张 CA 证书 +
+  一张它签发的独立叶子证书，`basicConstraints=CA:FALSE`，带 `subjectAltName`），
+  而不是单张自签名证书。`feedling-mcp` 后端的 `POST /v1/mcp/servers/{name}/test`
+  对 codex 驱动的账号会把这种情况报成 `codex_cert_chain_required`（而不是通用的
+  `tls` 错误）——app 或日志里看到这个错误码，就是这个原因。openssl 配方见
+  `feedling-mcp` 仓库的 `docs-site/content/docs/workflows/mcp.mdx`
+  （https://github.com/teleport-computer/feedling-mcp/blob/main/docs-site/content/docs/workflows/mcp.mdx）。
 - **载入之后要主动用——直接调，别问。** 当用户的问题落在某个已连工具的领域
   （比如连了个查仓库文档的 server、用户问某个代码仓库），就直接调那个工具、
   用它的结果回答；不要用自己的记忆答完再问"要不要我去查一下"，也不要先问授权
