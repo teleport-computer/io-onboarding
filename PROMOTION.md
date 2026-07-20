@@ -43,7 +43,7 @@ grep -rn "io-onboarding/test/" *.md --exclude=PROMOTION.md
 
 `skill-resident-agent.md` 里写死了 IO resident consumer（`feedling-mcp`）该装哪个分支，例如：
 
-> Before starting the service, install or update the official consumer code from `https://github.com/teleport-computer/feedling-mcp` on the **`test`** branch — the current consumer release lives there (`main` has not been promoted yet).
+> Before starting the service, install or update the official consumer code from `https://github.com/teleport-computer/feedling-mcp` on the **`main`** branch — the release branch matching this skill.
 
 promote io-onboarding 到 main 前，去核对一下：**feedling-mcp 当前的发布分支到底是不是这里写的这个**。feedling-mcp 自己也在跑 test/main 两条车道，两边promote节奏不同步是常态——io-onboarding 这边写的分支名可能已经滞后于 feedling-mcp 实际的发布状态。
 
@@ -54,7 +54,7 @@ grep -n "feedling-mcp\` on the \*\*\`" skill-resident-agent.md   # 英文段
 grep -n "feedling-mcp\` 的 \*\*\`" skill-resident-agent.md        # 中文段
 ```
 
-确认写的分支名（当前是 `test`）仍是 feedling-mcp 现在真正对外发布的那条；如果 feedling-mcp 已经把这批改动 promote 到 main，这里也要跟着把 `test` 改成 `main`（连同"`main` has not been promoted yet”这类措辞一起改）。
+确认写的分支名仍和 feedling-mcp 实际发布的那条一致。**注意：这个分支名跟 io-onboarding 自己的 test/main 车道无关**——两条 io-onboarding 车道都写 feedling-mcp *当前对外发布*的那条分支（目前 test 和 main 都写 `main`，因为 feedling-mcp 已 promote 到 main）。它不随 io-onboarding 的车道自动镜像，只跟 feedling-mcp 的发布状态走。feedling-mcp 换发布分支时，**两条车道要一起改**，别让 test 和 main 的 consumer 指向分叉。
 
 ## ④ diff 审阅
 
