@@ -14,7 +14,7 @@ https://raw.githubusercontent.com/teleport-computer/io-onboarding/test/skill.md
 - Configure an independent `feedling-chat-resident` / IO resident consumer service with that config.
 - Before starting the service, install or update the official consumer code from `https://github.com/teleport-computer/feedling-mcp` on the **`main`** branch — the release branch matching this skill. If a checkout already exists, fast-forward it (`git fetch origin main` then `git checkout main` then `git pull --ff-only origin main`). If that checkout is dirty or not from the official repo, use a fresh checkout on `main` and point `WorkingDirectory` / `ExecStart` at it. In your external setup report, include the local HEAD and `origin/main`; they must match before Step 6.
 - **The consumer's agent entry MUST be the same runtime that received this onboarding prompt — i.e. you.** If several runtimes happen to be installed on the box (e.g. both Hermes and OpenClaw), do NOT survey them and route to a "more convenient" one. The user is talking to a specific agent; the consumer must call that agent, not a sibling runtime. If the runtime you run in self-identifies with a runtime label when probed, that is fine — fix the card's `agent_name` (next bullet), do not switch runtimes to get a different default name.
-- Fill in the agent entry from your own runtime, then point the consumer at it through HTTP or CLI. Use HTTP only when you expose a real resident endpoint that reaches your actual agent session. Otherwise use CLI. For Hermes/OpenClaw with no HTTP endpoint, set `HERMES_HOME` to the same profile/home used by the real running resident agent. Prefer reading it from the actual service environment (`systemctl --user cat/show hermes-gateway`, or `/proc/<MainPID>/environ`) instead of guessing from profile folder names. Then use the default CLI candidate `hermes chat -Q --source tool --max-turns 60 -q "{message}"`; the consumer stores the first `session_id` and resumes later turns with `--resume`. For Claude Code CLI, use `claude --print --output-format json "{message}"`; the consumer reads Claude Code's `session_id` from JSON output and resumes later turns with `--resume`. Use an absolute executable path if the service environment cannot find the CLI.
+- Fill in the agent entry from your own runtime, then point the consumer at it through HTTP or CLI. Use HTTP only when you expose a real resident endpoint that reaches your actual agent session. Otherwise use CLI — and set `AGENT_MODE=cli` explicitly: the consumer defaults to http mode, and with only `AGENT_CLI_CMD` set every turn fails with `AGENT_HTTP_URL is not set for http mode`. For Hermes/OpenClaw with no HTTP endpoint, set `HERMES_HOME` to the same profile/home used by the real running resident agent. Prefer reading it from the actual service environment (`systemctl --user cat/show hermes-gateway`, or `/proc/<MainPID>/environ`) instead of guessing from profile folder names. Then use the default CLI candidate `hermes chat -Q --source tool --max-turns 60 -q "{message}"`; the consumer stores the first `session_id` and resumes later turns with `--resume`. For Claude Code CLI, use `claude --print --output-format json "{message}"`; the consumer reads Claude Code's `session_id` from JSON output and resumes later turns with `--resume`. Use an absolute executable path if the service environment cannot find the CLI.
 - Do not wrap `{message}` in a new identity/persona prompt. IO is a new transport for the same agent, not a new character or a lightweight helper.
 - `agent_name` (in the identity card) must not be a runtime label — do not name yourself "Hermes" / "OpenClaw" / "Claude". But this is a constraint on the *name written in the card only*. It is NOT a reason to (a) switch which runtime carries the messages, or (b) edit your runtime's own persona/identity files (e.g. `IDENTITY.md`, `BOOTSTRAP.md`) to force a name. Use whichever runtime is your real agent as the transport, leave its files untouched, and set the card's `agent_name` separately. Choosing transport and naming the card are independent steps.
 - For image messages, the consumer must pass the decrypted image context to your runtime: OpenAI-compatible HTTP receives an `image_url` block, simple HTTP receives an `images` array, and CLI receives a local image file path. If your CLI has a first-class image flag, use `{image_path}` / `{image_paths}` in `AGENT_CLI_CMD`; otherwise the consumer appends the path to `{message}`.
@@ -41,7 +41,7 @@ feedling-chat-resident
 - 用这些信息配置一个独立的 `feedling-chat-resident` / IO resident consumer service。
 - 启动 service 之前，先从 `https://github.com/teleport-computer/feedling-mcp` 的 **`main`** 分支安装或更新官方 consumer 代码——和这份 skill 匹配的发布分支。已有 checkout 时，用 fast-forward 更新（`git fetch origin main` 然后 `git checkout main` 然后 `git pull --ff-only origin main`）。如果 checkout 有本地改动或不是官方 repo，就在 `main` 上用新的干净 checkout，并让 `WorkingDirectory` / `ExecStart` 指向它。在外部 setup 汇报里写清楚 local HEAD 和 `origin/main`；两者一致后才能进入 Step 6。
 - **consumer 的 agent 入口必须是"收到这条 onboarding 指令的那个 runtime"——也就是你自己。** 如果这台机器上恰好装了多个 runtime（比如同时有 Hermes 和 OpenClaw），不要去逐个试探、改接一个"更顺手"的。用户在跟某个特定 agent 对话，consumer 必须接到那个 agent，而不是它的兄弟 runtime。如果你所在的 runtime 被探测时自报了一个 runtime 名字，没关系——去改卡里的 `agent_name`（下一条），不要为了拿一个不同的默认名字去换 runtime。
-- agent 入口由你根据自己的 runtime 填出来，不应该要求用户提供。有真实 resident HTTP endpoint 才用 HTTP；否则用 CLI。Hermes/OpenClaw 没有 HTTP endpoint 时，把 `HERMES_HOME` 设成你真实正在运行的常驻 agent 使用的同一个 profile/home。优先从真实 service 环境读取（`systemctl --user cat/show hermes-gateway`，或 `/proc/<MainPID>/environ`），不要靠 profile 文件夹名字猜。然后使用默认 CLI 候选：`hermes chat -Q --source tool --max-turns 60 -q "{message}"`；consumer 会保存第一次返回的 `session_id`，后续用 `--resume` 续接。Claude Code CLI 使用 `claude --print --output-format json "{message}"`；consumer 会从 JSON output 读取 Claude Code 的 `session_id`，后续用 `--resume` 续接。service 环境找不到 CLI 时改用绝对路径。
+- agent 入口由你根据自己的 runtime 填出来，不应该要求用户提供。有真实 resident HTTP endpoint 才用 HTTP；否则用 CLI——并且要显式设 `AGENT_MODE=cli`：consumer 默认是 http 模式，只设 `AGENT_CLI_CMD` 的话每一轮都会报 `AGENT_HTTP_URL is not set for http mode`。Hermes/OpenClaw 没有 HTTP endpoint 时，把 `HERMES_HOME` 设成你真实正在运行的常驻 agent 使用的同一个 profile/home。优先从真实 service 环境读取（`systemctl --user cat/show hermes-gateway`，或 `/proc/<MainPID>/environ`），不要靠 profile 文件夹名字猜。然后使用默认 CLI 候选：`hermes chat -Q --source tool --max-turns 60 -q "{message}"`；consumer 会保存第一次返回的 `session_id`，后续用 `--resume` 续接。Claude Code CLI 使用 `claude --print --output-format json "{message}"`；consumer 会从 JSON output 读取 Claude Code 的 `session_id`，后续用 `--resume` 续接。service 环境找不到 CLI 时改用绝对路径。
 - 不要给 `{message}` 外面再包一层新人格 / 新身份 prompt。IO 只是同一个 agent 的新入口，不是新角色，也不是轻量 helper。
 - 身份卡里的 `agent_name` 不能是 runtime 标签——别把自己叫成 "Hermes" / "OpenClaw" / "Claude"。但这只是对*卡里那个名字*的约束。它**不是**让你为此去 (a) 换一个 runtime 来传消息，或 (b) 改你 runtime 自己的人格/身份文件（比如 `IDENTITY.md`、`BOOTSTRAP.md`）来强行改名。用你真实的那个 agent runtime 当传输，别动它的文件，卡里的 `agent_name` 单独设。选传输和给卡命名是两件独立的事。
 - 图片消息也要由 consumer 把解密后的图片上下文交给你的 runtime：OpenAI-compatible HTTP 收到 `image_url` block，simple HTTP 收到 `images` array，CLI 收到本地图片文件路径。如果你的 CLI 有专门的图片参数，在 `AGENT_CLI_CMD` 里使用 `{image_path}` / `{image_paths}`；否则 consumer 会把路径追加进 `{message}`。
@@ -332,6 +332,11 @@ their model API key) and wants **you** — their resident agent — to take over
 API key, and all data (identity / memories / chat) stay exactly where they are, encrypted in
 the cloud. You are only changing *who runs the agent*. Nothing is exported or moved.
 
+**This is an EXISTING account, not a fresh onboarding.** The identity card and memories are
+already in the cloud. Do NOT call `register`, and do NOT run `onboard-start` / `identity-init` /
+any identity re-derivation — from "Your path" above you only need the consumer half: install the
+official consumer, wire your agent entry, start the service, then `chat-verify-loop`.
+
 **Order is critical: stop hosted FIRST, confirm it stopped, THEN start yourself.** If both the
 hosted agent and you serve the user at the same time, you get double replies and double model-key
 spend. Use the same `FEEDLING_API_KEY` throughout — never tell the user to reset their account.
@@ -351,6 +356,17 @@ lives here on your host, so this is safe and reversible via app re-setup):
 curl -sk --retry 3 --retry-all-errors -X DELETE -H "X-API-Key: $KEY" "$API_URL/v1/model_api/delete"
 ```
 Expect `{"deleted":true}`. This touches only the model-API config, never chat/memory data.
+
+**Step 1.5 — Flip the account's access mode to resident.** Deleting the model-API config does
+NOT change the account's route marker. Skipped, the account stays half-hosted: chat still works,
+but server-side resident maintenance nudges, onboarding gates, and stats keep treating it as a
+hosted account:
+```
+curl -sk --retry 3 --retry-all-errors -X POST -H "X-API-Key: $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"access_mode":"resident"}' "$API_URL/v1/access/modes/switch"
+```
+Expect HTTP 200 with `"active_route":"resident"` in the response.
 
 **Step 2 — Wait until hosted is confirmed off (usually 1–3 min).** Poll:
 ```
@@ -379,6 +395,10 @@ over again on the next cycle. Data is never affected either way.
 agent）来接管。账号、API key、所有数据（身份/记忆/聊天）都原地不动、留在云端密文里，你只是换
 **「谁来跑 agent」**，不导出、不搬迁任何东西。
 
+**这是已有账号，不是新 onboarding。** 身份卡和记忆已经在云端。**不要**调 `register`、不要跑
+`onboard-start` / `identity-init` / 任何身份重派生——上面 "Your path" 里你只需要 consumer 那一半：
+装官方 consumer、接好 agent 入口、起服务、跑 `chat-verify-loop`。
+
 **顺序是关键：先停托管 → 确认停了 → 再启动你自己。** 两个 agent 同时服务会重复回复、重复烧模型 key。
 全程用同一个 `FEEDLING_API_KEY`，**绝不让用户 reset 账号**。
 
@@ -386,6 +406,10 @@ agent）来接管。账号、API key、所有数据（身份/记忆/聊天）都
   返回 200 + 明文历史/记忆 = 通过；连不上/401/空 = **停手**，enclave 地址不对或不可达，别删东西。
 - **第 1 步 · 停托管**：`curl -sk -X DELETE -H "X-API-Key: $KEY" "$API_URL/v1/model_api/delete"`，
   得到 `{"deleted":true}`。只删服务端模型配置（用户模型 key 已在你本地），不碰聊天/记忆。
+- **第 1.5 步 · 把账号路由切成 resident**：删配置**不会**同时翻转账号的路由标记，漏了这步账号会停在
+  「半托管」状态（聊天能通，但服务端的 resident 维护提醒、验收 gate、统计口径都还把它当托管账号）：
+  `curl -sk -X POST -H "X-API-Key: $KEY" -H "Content-Type: application/json" -d '{"access_mode":"resident"}' "$API_URL/v1/access/modes/switch"`，
+  返回 200 且响应里 `active_route` 为 `resident`。
 - **第 2 步 · 等托管确认停止（约 1–3 分钟）**：轮询 `$API_URL/v1/bootstrap/status`，看 `resident_consumer`。
   一开始 `consumer_id` 是 `agent-runner:<user_id>`、`passing:true`；托管被回收后停止 poll，`age_sec` 增大，
   最终 **`passing` 变 `false`**——到这一步才继续。托管还 `passing:true` 时**绝不**启动你自己。
