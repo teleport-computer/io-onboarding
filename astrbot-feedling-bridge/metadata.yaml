@@ -1,0 +1,11 @@
+name: astrbot_feedling_bridge
+display_name: Feedling IO Bridge
+desc: 将白名单 QQ 私聊安全搬运到 Feedling resident agent，并把 agent 回复主动发回 QQ；插件本身不调用任何 LLM。
+short_desc: QQ 与 Feedling resident agent 之间的纯桥接插件
+author: teleport
+version: 0.1.0
+repo: https://github.com/teleport-computer/io-onboarding
+astrbot_version: ">=4.9.2,<5"
+support_platforms:
+  - aiocqhttp
+  - qq_official
