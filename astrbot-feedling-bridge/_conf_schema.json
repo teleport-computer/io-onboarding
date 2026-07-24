@@ -1,0 +1,39 @@
+{
+  "feedling_api_url": {
+    "description": "Feedling API URL",
+    "type": "string",
+    "default": "https://test-api.feedling.app",
+    "hint": "例如 https://test-api.feedling.app；生产环境请填写你的 Feedling API 地址。"
+  },
+  "feedling_api_key": {
+    "description": "Feedling API Key",
+    "type": "string",
+    "default": "",
+    "hint": "只保存在 AstrBot 插件配置中，不会写入日志。",
+    "obvious_hint": true
+  },
+  "feedling_enclave_url": {
+    "description": "Feedling Enclave URL",
+    "type": "string",
+    "default": "",
+    "hint": "resident consumer 使用的 TEE 解密 history 地址；插件只对此地址关闭 TLS 证书校验。"
+  },
+  "owner_qq": {
+    "description": "主人 QQ 白名单",
+    "type": "list",
+    "default": [],
+    "hint": "填写允许注入 Feedling 对话的 QQ 号。支持多个；群聊永不桥接。"
+  },
+  "poll_interval": {
+    "description": "回复轮询间隔（秒）",
+    "type": "int",
+    "default": 20,
+    "hint": "最小 10 秒；agent 回合是异步的，入站消息不会阻塞等待回复。"
+  },
+  "forward_app_messages": {
+    "description": "把 Feedling App 内产生的 agent 回复也镜像到 QQ",
+    "type": "bool",
+    "default": true,
+    "hint": "关闭后，只转发 reply_to_message_id 属于 QQ 桥接入站消息的 agent 回复。"
+  }
+}

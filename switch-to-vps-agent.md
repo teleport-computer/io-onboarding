@@ -22,21 +22,37 @@
 
 ### 3 步
 
-**第 1 步 · 从 app 复制连接配置**
+**第 1 步 · 从 app 复制连接信息**
 
-打开 IO → Chat → 选「**我有自己的服务器**」。复制它给你的那段 `resident consumer config`
-（里面有 `FEEDLING_API_URL`、`FEEDLING_API_KEY`、以及一个 enclave 地址）。**整段复制，别改。**
+打开 IO → **设置** → 「**账号凭据**」→ 「**导出与备份凭据**」。复制其中的
+**服务器地址（Server URL）** 和 **API Key** 两项。
+
+> ⚠️ 那张卡里还显示一个「**私钥**」——**不要复制、不要发给任何人**，这次切换用不到它。
+
+解密源（enclave）地址不在那张卡里，它是固定值，按你在用的环境从下表取：
+
+| 环境 | `FEEDLING_ENCLAVE_URL` |
+|---|---|
+| 正式版 (App Store) | `https://9798850e096d770293c67305c6cfdceed68c1d28-5003s.dstack-pha-prod9.phala.network` |
+| test 内测版 | `https://173c7f49aeb54acb424676b17b17f78e5e2b2938-5003s.dstack-pha-prod9.phala.network` |
+
+（不确定自己在哪个环境？看你刚复制的服务器地址：`https://api.feedling.app` = 正式版，
+`https://test-api.feedling.app` = test。）
 
 **第 2 步 · 把下面这段话，连同配置，发给你 VPS 上的 agent**
 
 ```
-我要把 IO 从托管模式切换到用你（我 VPS 上的 agent）来跑。
-下面是我从 app 复制的连接配置：
+我要把 IO 从托管模式切换到用你（我 VPS 上的 agent）来跑。这是我的连接配置：
 
-<在这里粘贴你从 app 复制的整段配置>
+FEEDLING_API_URL=<第 1 步复制的服务器地址>
+FEEDLING_API_KEY=<第 1 步复制的 API Key>
+FEEDLING_ENCLAVE_URL=<第 1 步表格里对应环境的地址>
 
-请按 IO 的 resident-agent skill 完成这次切换：先确认能解密我云端的数据，
-再停掉托管，确认托管停了之后，再把你自己作为常驻服务启动，最后确认切换完成。
+请先读 https://raw.githubusercontent.com/teleport-computer/io-onboarding/test/skill-resident-agent.md
+里「Switching a user from hosted to their VPS agent」一节，严格按那套流程切换：
+先确认能解密我云端的数据，再停掉托管并把账号切成 resident 模式，等托管确认停了，
+再把你自己作为常驻服务启动，最后确认切换完成。
+我的账号已经有身份卡和记忆——不要注册新账号、不要重新初始化身份。
 过程中的命令、日志都留在我们这个对话里，别动我在 IO 里的任何聊天和记忆。
 ```
 
@@ -74,23 +90,43 @@ Switching does **not** require deleting anything.
 
 ### 3 steps
 
-**Step 1 · Copy the connection config from the app**
+**Step 1 · Copy your connection info from the app**
 
-Open IO → Chat → choose "**I have my own server**". Copy the `resident consumer config`
-it shows you (it contains `FEEDLING_API_URL`, `FEEDLING_API_KEY`, and an enclave address).
-**Copy the whole thing, unchanged.**
+Open IO → **Settings** → "**Account keys**" → "**Export / back up keys**". Copy the
+**Server URL** and the **API Key**.
+
+> ⚠️ That card also shows a "**private key**" — **do not copy it or send it to anyone**;
+> the switch doesn't need it.
+
+The decrypt-source (enclave) address is not on that card; it's a fixed per-environment
+value — pick yours from this table:
+
+| Environment | `FEEDLING_ENCLAVE_URL` |
+|---|---|
+| Production (App Store) | `https://9798850e096d770293c67305c6cfdceed68c1d28-5003s.dstack-pha-prod9.phala.network` |
+| test (beta) | `https://173c7f49aeb54acb424676b17b17f78e5e2b2938-5003s.dstack-pha-prod9.phala.network` |
+
+(Not sure which environment you're on? Check the Server URL you just copied:
+`https://api.feedling.app` = production, `https://test-api.feedling.app` = test.)
 
 **Step 2 · Send this message, plus the config, to your VPS agent**
 
 ```
 I want to switch IO from hosted mode to running on you (my agent on my VPS).
-Here's the connection config I copied from the app:
+Here is my connection config:
 
-<paste the whole config you copied from the app here>
+FEEDLING_API_URL=<the Server URL copied in Step 1>
+FEEDLING_API_KEY=<the API Key copied in Step 1>
+FEEDLING_ENCLAVE_URL=<the address for my environment from the Step 1 table>
 
-Please follow IO's resident-agent skill to do the switch: first confirm you can
-decrypt my cloud data, then stop the hosted agent, wait until it's fully stopped,
-then start yourself as a resident service, and finally confirm the switch is done.
+First read the "Switching a user from hosted to their VPS agent" section of
+https://raw.githubusercontent.com/teleport-computer/io-onboarding/test/skill-resident-agent.md
+and follow that procedure exactly: first confirm you can decrypt my cloud data,
+then stop the hosted agent and switch my account to resident mode, wait until
+hosted is confirmed stopped, then start yourself as a resident service, and
+finally confirm the switch is done.
+My account already has an identity card and memories — do NOT register a new
+account and do NOT re-initialize identity.
 Keep all commands and logs here in our chat; don't touch any of my IO chats or memories.
 ```
 
