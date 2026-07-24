@@ -13,9 +13,9 @@
 在跑 AstrBot 的机器上执行:
 
 ```bash
-wget https://github.com/teleport-computer/io-onboarding/archive/refs/heads/test.zip -O /tmp/io.zip
+wget https://github.com/teleport-computer/io-onboarding/archive/refs/heads/main.zip -O /tmp/io.zip
 unzip -o /tmp/io.zip -d /tmp/
-cp -r /tmp/io-onboarding-test/astrbot-feedling-bridge <你的AstrBot目录>/data/plugins/
+cp -r /tmp/io-onboarding-main/astrbot-feedling-bridge <你的AstrBot目录>/data/plugins/
 ```
 
 然后打开 AstrBot WebUI → 插件管理 → **重载插件**(依赖 `httpx`、`cryptography` 会自动安装)。
@@ -71,4 +71,4 @@ WebUI → 该插件的配置页,共 5 项。
 把 `/feedling_selftest` 的**完整输出**发回来即可,一分钟定位。
 
 想了解原理(单脑桥接原则、排查表):同仓库的
-[`im-bridge-guide.md`](https://github.com/teleport-computer/io-onboarding/blob/test/im-bridge-guide.md)。
+[`im-bridge-guide.md`](https://github.com/teleport-computer/io-onboarding/blob/main/im-bridge-guide.md)。

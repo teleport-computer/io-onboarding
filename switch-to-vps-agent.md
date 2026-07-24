@@ -48,7 +48,7 @@ FEEDLING_API_URL=<第 1 步复制的服务器地址>
 FEEDLING_API_KEY=<第 1 步复制的 API Key>
 FEEDLING_ENCLAVE_URL=<第 1 步表格里对应环境的地址>
 
-请先读 https://raw.githubusercontent.com/teleport-computer/io-onboarding/test/skill-resident-agent.md
+请先读 https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill-resident-agent.md
 里「Switching a user from hosted to their VPS agent」一节，严格按那套流程切换：
 先确认能解密我云端的数据，再停掉托管并把账号切成 resident 模式，等托管确认停了，
 再把你自己作为常驻服务启动，最后确认切换完成。
@@ -120,7 +120,7 @@ FEEDLING_API_KEY=<the API Key copied in Step 1>
 FEEDLING_ENCLAVE_URL=<the address for my environment from the Step 1 table>
 
 First read the "Switching a user from hosted to their VPS agent" section of
-https://raw.githubusercontent.com/teleport-computer/io-onboarding/test/skill-resident-agent.md
+https://raw.githubusercontent.com/teleport-computer/io-onboarding/main/skill-resident-agent.md
 and follow that procedure exactly: first confirm you can decrypt my cloud data,
 then stop the hosted agent and switch my account to resident mode, wait until
 hosted is confirmed stopped, then start yourself as a resident service, and
